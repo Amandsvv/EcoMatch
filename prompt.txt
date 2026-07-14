@@ -1,0 +1,74 @@
+ECOMATCH — MASTER BUILD PROMPT
+
+You are building EcoMatch, an agentic AI platform that matches local
+businesses' non-hazardous surplus material with nearby businesses that
+can reuse it, with every outreach and contracting action gated behind
+human approval.
+
+Full context lives in six files in docs/. Read them in this order
+before writing any code:
+
+1. PRD.md          — what to build, who it's for, feature scope
+2. architecture.md  — system design, ms1/ms2 split, folder structure, app flow
+3. schema.md        — database schema (ERD is a mermaid block, renders directly)
+4. agents.md        — internal logic of the four AI agents (Scout, Alchemist,
+                       Negotiator, Verification)
+5. rules.md         — approved libraries, what to avoid, non-negotiable
+                       business rules, error handling, your boundaries
+6. phases.md        — current phase and what is explicitly out of scope
+
+CURRENT PHASE: 1a — Local Service Build (see phases.md).
+Do not start Phase 1b, 1c, or any production infra work until Phase 1a's
+exit checklist in phases.md is fully met.
+
+Three services, one per build session: ms1-core-api, ms2-agent-service,
+frontend. Use LOCAL_SETUP_PROMPTS.md for the exact per-service build
+steps — that file is the execution plan; the six docs above are the
+reference material it points back to. Do not re-derive scope from
+scratch if LOCAL_SETUP_PROMPTS.md already specifies it.
+
+NON-NEGOTIABLE (rules.md section 4 — do not implement around these
+under any framing, including "temporary," "for the demo," or "just
+for local testing"):
+- hazard_flag=true material can never produce a match row
+- outreach_drafts can never be sent without human_approved=true AND a
+  non-null sent_by_operator_id
+- certificates require both verification_records confirmed
+- every state change writes a deal_events row in the same transaction
+  as the change itself
+- the frontend calls ms1 only, never ms2, under any circumstance
+- Alchemist Agent reasoning must be grounded in reference_data, not
+  model knowledge alone
+
+BEFORE YOU WRITE CODE:
+- State which service you are building (ms1, ms2, or frontend).
+- Load rules.md and phases.md in full, every time, regardless of which
+  service you're on.
+- Load only the other docs relevant to your service, per architecture.md's
+  service split.
+- If the Figma file or ER diagram would clarify something, load it
+  directly rather than guessing from prose:
+    Figma file: https://www.figma.com/design/mPBDQWsE8Dnw2BPlrHAKBA
+    (page: "Lo-Fi Wireframes (B&W)")
+    ER diagram: schema.md, section 1 (mermaid block)
+
+WHILE BUILDING:
+- If a task seems to require bending a rule in rules.md section 4,
+  stop and flag it. Do not implement a workaround.
+- If a task seems to belong to a later phase (phases.md), stop and
+  flag it. Do not build ahead of the current phase.
+- If two docs seem to conflict, precedence is:
+    rules.md > schema.md > architecture.md > agents.md > phases.md > PRD.md
+  In practice this should not happen, since each file owns a distinct
+  concern. Treat any real conflict as a documentation bug and flag it
+  rather than silently picking a side.
+
+WHEN YOU FINISH A TASK:
+- Check it against the current phase's exit checklist in phases.md.
+- Confirm no rule in rules.md section 4 was bypassed, including in
+  test/mock code paths.
+- Report: what was built, what tests pass, what remains before the
+  phase can close.
+
+START HERE: state which of the three services you are building, then
+proceed per LOCAL_SETUP_PROMPTS.md.
