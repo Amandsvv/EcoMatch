@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
 import { SubmissionsRepository } from './submissions.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -193,13 +194,15 @@ export class SubmissionsService {
           phone: '555-9999',
         };
 
-        const stubUserId = '00000000-0000-0000-0000-000000000000';
+        const existingUser = await this.repository.getUserByEmail('stub-targets@ecomatch.dev');
+        const stubUserId = existingUser ? existingUser.id : uuidv4();
+        const passwordHash = await bcrypt.hash('password123', 8);
         
         await this.repository.ensureUserAndBusinessExist(
           {
             id: stubUserId,
             email: 'stub-targets@ecomatch.dev',
-            passwordHash: 'stub-password-hash',
+            passwordHash: passwordHash,
             role: 'business',
           },
           {
@@ -330,7 +333,7 @@ export class SubmissionsService {
       return [];
     }
     const businessIds = userBusinesses.map((b) => b.id);
-    return this.repository.getSubmissionsByBusinessIds(businessIds);
+    return this.repository.getSubmissionsForBusinessOrTarget(businessIds);
   }
 
   async getSubmissionDetails(submissionId: string) {

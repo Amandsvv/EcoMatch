@@ -188,7 +188,35 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
+      {/* Hauler Info Section */}
+      {match.status !== 'proposed' && match.status !== 'rejected' && (
+        <div className="bg-slate-900/40 border border-slate-900 p-6 rounded-3xl backdrop-blur-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 text-emerald-400">
+              <Truck className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-white text-sm">Assigned Logistics Partner</h4>
+              <p className="text-xs text-slate-400 mt-1">
+                A hauler has been automatically dispatched to coordinate this transfer.
+              </p>
+            </div>
+          </div>
+          <div className="bg-slate-950 border border-slate-900 rounded-2xl p-4 flex flex-col justify-center sm:min-w-[280px]">
+            <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-900">
+              <span className="text-slate-500 font-medium">HAULER COMPANY</span>
+              <span className="text-white font-bold">EcoMatch Logistics</span>
+            </div>
+            <div className="flex items-center justify-between text-xs pt-2">
+              <span className="text-slate-500 font-medium">CONTACT NUMBER</span>
+              <span className="text-emerald-400 font-bold font-mono">+1-555-LOG-PICK</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid split: Verification Form & Certificate */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* Left Side: Verification Records */}
@@ -325,7 +353,15 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
                 <p className="text-[10px] text-slate-400 font-mono leading-relaxed bg-slate-950 p-2.5 rounded-lg border border-slate-900">
                   {certificate.methodologyReference}
                 </p>
+                <button
+                  onClick={() => window.open(`/dashboard/certificate/${match.id}`, '_blank')}
+                  className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-2.5 text-xs font-bold transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center border border-emerald-500/20"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download PDF Certificate
+                </button>
               </div>
+
             </div>
           ) : (
             /* Action call to issue certificate if verifications complete */

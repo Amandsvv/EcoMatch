@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 import { getDb, schema } from '../../db';
 
 export class OutreachRepository {
@@ -66,19 +67,55 @@ export class OutreachRepository {
       // 2. Insert accept event
       await tx.insert(schema.dealEvents).values(acceptEvent);
 
-      // 3. If both accepted, update match and insert second event
+      // 3. If both accepted, update match, schedule logistics, and insert second event
       if (shouldUpdateMatch) {
+        // Find or create default hauler
+        const existingHaulers = await tx
+          .select()
+          .from(schema.haulers)
+          .where(eq(schema.haulers.name, 'EcoMatch Logistics'))
+          .limit(1);
+
+        let haulerId: string;
+        if (existingHaulers.length > 0) {
+          haulerId = existingHaulers[0].id;
+        } else {
+          haulerId = uuidv4();
+          await tx.insert(schema.haulers).values({
+            id: haulerId,
+            name: 'EcoMatch Logistics',
+            contact: '+1-555-LOG-PICK',
+            serviceArea: 'New York Metro Area',
+          });
+        }
+
+        // Create logistics booking
+        await tx.insert(schema.logisticsBookings).values({
+          id: uuidv4(),
+          matchId: matchId,
+          haulerId: haulerId,
+          pickupDate: new Date().toISOString().split('T')[0],
+          status: 'scheduled',
+        });
+
+        // Update match status to logistics_scheduled
         await tx
           .update(schema.matches)
-          .set({ status: 'both_accepted' })
+          .set({ status: 'logistics_scheduled' })
           .where(eq(schema.matches.id, matchId));
 
         if (matchBothAcceptedEvent) {
-          await tx.insert(schema.dealEvents).values(matchBothAcceptedEvent);
+          // Adjust description to reflect hauler scheduling
+          const updatedEvent = {
+            ...matchBothAcceptedEvent,
+            description: 'Both businesses have accepted the proposal. Hauler EcoMatch Logistics has been scheduled.'
+          };
+          await tx.insert(schema.dealEvents).values(updatedEvent);
         }
       }
     });
   }
+
 
   async rejectDraftAndMatch(
     outreachDraftId: string,

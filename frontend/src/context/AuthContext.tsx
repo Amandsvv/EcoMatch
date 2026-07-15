@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, pathname, loading, user, router]);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
       const response = await api.login({ email, password });
       
@@ -85,13 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/dashboard');
       }
     } catch (err) {
-      setLoading(false);
       throw err;
     }
   };
 
   const signup = async (signupData: any) => {
-    setLoading(true);
     try {
       const response = await api.signup(signupData);
       
@@ -111,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       router.push('/dashboard');
     } catch (err) {
-      setLoading(false);
       throw err;
     }
   };

@@ -1,4 +1,4 @@
-import { eq, and, inArray, desc } from 'drizzle-orm';
+import { eq, and, or, inArray, desc } from 'drizzle-orm';
 import { getDb, schema } from '../../db';
 
 export class SubmissionsRepository {
@@ -35,6 +35,16 @@ export class SubmissionsRepository {
     return result[0] || null;
   }
 
+  async getUserByEmail(email: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+    return result[0] || null;
+  }
+
   async getBusinessesByUserId(userId: string) {
     const db = getDb();
     return db
@@ -45,11 +55,91 @@ export class SubmissionsRepository {
 
   async getSubmissionsByBusinessIds(businessIds: string[]) {
     const db = getDb();
-    return db
-      .select()
+    const rows = await db
+      .select({
+        submission: schema.submissions,
+        classification: schema.materialClassifications,
+        match: schema.matches,
+      })
       .from(schema.submissions)
-      .where(inArray(schema.submissions.businessId, businessIds));
+      .leftJoin(
+        schema.materialClassifications,
+        eq(schema.submissions.id, schema.materialClassifications.submissionId)
+      )
+      .leftJoin(
+        schema.matches,
+        eq(schema.submissions.id, schema.matches.submissionId)
+      )
+      .where(inArray(schema.submissions.businessId, businessIds))
+      .orderBy(desc(schema.submissions.createdAt));
+
+    return rows.map((r) => {
+      let status = r.submission.status;
+      if (r.match) {
+        if (r.match.status === 'proposed') {
+          status = 'match_proposed';
+        } else if (['both_accepted', 'logistics_scheduled', 'completed'].includes(r.match.status)) {
+          status = 'both_accepted';
+        } else if (r.match.status === 'verified') {
+          status = 'verified';
+        } else if (r.match.status === 'rejected') {
+          status = 'no_match_found';
+        }
+      }
+      return {
+        ...r.submission,
+        status,
+        classification: r.classification || undefined,
+        match: r.match || undefined,
+      };
+    });
   }
+
+  async getSubmissionsForBusinessOrTarget(businessIds: string[]) {
+    const db = getDb();
+    const rows = await db
+      .select({
+        submission: schema.submissions,
+        classification: schema.materialClassifications,
+        match: schema.matches,
+      })
+      .from(schema.submissions)
+      .leftJoin(
+        schema.materialClassifications,
+        eq(schema.submissions.id, schema.materialClassifications.submissionId)
+      )
+      .leftJoin(
+        schema.matches,
+        eq(schema.submissions.id, schema.matches.submissionId)
+      )
+      .where(or(
+        inArray(schema.submissions.businessId, businessIds),
+        inArray(schema.matches.targetBusinessId, businessIds)
+      ))
+      .orderBy(desc(schema.submissions.createdAt));
+
+    return rows.map((r) => {
+      let status = r.submission.status;
+      if (r.match) {
+        if (r.match.status === 'proposed') {
+          status = 'match_proposed';
+        } else if (['both_accepted', 'logistics_scheduled', 'completed'].includes(r.match.status)) {
+          status = 'both_accepted';
+        } else if (r.match.status === 'verified') {
+          status = 'verified';
+        } else if (r.match.status === 'rejected') {
+          status = 'no_match_found';
+        }
+      }
+      return {
+        ...r.submission,
+        status,
+        classification: r.classification || undefined,
+        match: r.match || undefined,
+      };
+    });
+  }
+
 
   async getSubmissionById(submissionId: string) {
     const db = getDb();

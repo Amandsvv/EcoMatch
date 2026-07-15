@@ -345,17 +345,18 @@ export default function Dashboard() {
 
         {/* Submissions Section */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white">Your Material Submissions</h3>
+          <h3 className="text-lg font-bold text-white">Material Submissions & Matches</h3>
 
           {submissions.length === 0 ? (
             <div className="bg-slate-900/20 border border-slate-900 border-dashed rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
               <Recycle className="h-12 w-12 text-slate-700" />
               <div className="space-y-1">
-                <h4 className="font-bold text-white">No surplus submissions yet</h4>
+                <h4 className="font-bold text-white">No submissions or matches yet</h4>
                 <p className="text-sm text-slate-500 max-w-sm">
                   Describe your material (brewery grains, cardboard, cooking oil) to find nearby symbiosis matches.
                 </p>
               </div>
+
               <Link
                 href="/dashboard/submit"
                 className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"

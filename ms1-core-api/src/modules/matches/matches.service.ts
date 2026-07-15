@@ -24,11 +24,13 @@ export class MatchesService {
 
     const outreachDrafts = await this.repository.getOutreachDraftsByMatchId(matchId);
     const dealEvents = await this.repository.getDealEventsByMatchId(matchId);
+    const logisticsBooking = await this.repository.getLogisticsBookingByMatchId(matchId);
 
     return {
       match,
       outreachDrafts,
       dealEvents,
+      logisticsBooking,
     };
   }
 
@@ -40,13 +42,16 @@ export class MatchesService {
 
     const outreachDrafts = await this.repository.getOutreachDraftsByMatchId(match.id);
     const dealEvents = await this.repository.getDealEventsByMatchId(match.id);
+    const logisticsBooking = await this.repository.getLogisticsBookingByMatchId(match.id);
 
     return {
       match,
       outreachDrafts,
       dealEvents,
+      logisticsBooking,
     };
   }
+
 
   async getDealEventsForMatch(matchId: string) {
     return this.repository.getDealEventsByMatchId(matchId);

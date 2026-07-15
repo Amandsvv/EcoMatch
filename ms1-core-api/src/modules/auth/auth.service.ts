@@ -23,7 +23,9 @@ export class AuthService {
       throw new AppError(ErrorCodes.USER_ALREADY_EXISTS, 409, 'User with this email already exists');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
     const userId = uuidv4();
     const businessId = uuidv4();
 

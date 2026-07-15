@@ -61,4 +61,29 @@ export class MatchesRepository {
       .from(schema.dealEvents)
       .where(eq(schema.dealEvents.matchId, matchId));
   }
+
+  async getLogisticsBookingByMatchId(matchId: string) {
+    const db = getDb();
+    const result = await db
+      .select({
+        booking: schema.logisticsBookings,
+        hauler: schema.haulers,
+      })
+      .from(schema.logisticsBookings)
+      .leftJoin(
+        schema.haulers,
+        eq(schema.logisticsBookings.haulerId, schema.haulers.id)
+      )
+      .where(eq(schema.logisticsBookings.matchId, matchId))
+      .limit(1);
+
+    if (result.length > 0) {
+      return {
+        ...result[0].booking,
+        hauler: result[0].hauler,
+      };
+    }
+    return null;
+  }
 }
+

@@ -39,12 +39,18 @@ export default function AdminConsole() {
   const [haulerContact, setHaulerContact] = useState('');
   const [haulerArea, setHaulerArea] = useState('');
 
+  const hasFetched = React.useRef(false);
+
   useEffect(() => {
-    if (!authLoading && user?.role !== 'admin') {
+    if (authLoading) return;
+    if (user?.role !== 'admin') {
       router.push('/dashboard');
-    } else if (user?.role === 'admin') {
-      fetchAdminData();
+      return;
     }
+    // Guard: only fetch once per mount, not on every state change
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+    fetchAdminData();
   }, [user, authLoading]);
 
   const fetchAdminData = async () => {

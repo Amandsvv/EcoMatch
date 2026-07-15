@@ -150,6 +150,7 @@ class LLMClient:
 
     async def _create_message_groq(self, *, system_prompt: str, user_content: str) -> str:
         import httpx
+        import re
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.groq_api_key}",
@@ -166,17 +167,63 @@ class LLMClient:
             "response_format": {"type": "json_object"}
         }
 
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            if response.status_code != 200:
-                logger.error("Groq API call failed", extra={
-                    "status_code": response.status_code,
-                    "response": response.text,
-                })
-                response.raise_for_status()
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    response = await client.post(url, headers=headers, json=payload)
+                    if response.status_code == 200:
+                        data = response.json()
+                        return data["choices"][0]["message"]["content"]
 
-            data = response.json()
-            return data["choices"][0]["message"]["content"]
+                    if response.status_code == 429:
+                        # Extract sleep time
+                        sleep_time = 1.5  # fallback
+                        retry_after = response.headers.get("retry-after")
+                        if retry_after:
+                            try:
+                                sleep_time = float(retry_after)
+                            except ValueError:
+                                pass
+                        else:
+                            resp_text = response.text
+                            # Look for e.g. "try again in 880ms" or "try again in 1.68s"
+                            match = re.search(r"try again in (\d+(?:\.\d+)?)(s|ms)", resp_text, re.IGNORECASE)
+                            if match:
+                                val = float(match.group(1))
+                                unit = match.group(2).lower()
+                                if unit == "ms":
+                                    sleep_time = (val / 1000.0) + 0.1
+                                else:
+                                    sleep_time = val + 0.1
+
+                        logger.warning(
+                            "Groq API rate limit (429) hit, retrying...",
+                            extra={
+                                "attempt": attempt + 1,
+                                "sleep_time_seconds": round(sleep_time, 2),
+                                "operation": "groq_rate_limit_retry"
+                            }
+                        )
+                        await asyncio.sleep(sleep_time)
+                        continue
+
+                    logger.error("Groq API call failed", extra={
+                        "status_code": response.status_code,
+                        "response": response.text,
+                    })
+                    response.raise_for_status()
+            except httpx.RequestError as exc:
+                if attempt == max_attempts - 1:
+                    raise
+                logger.warning(
+                    "Groq request network error, retrying...",
+                    extra={"attempt": attempt + 1, "error": str(exc)}
+                )
+                await asyncio.sleep(1.0)
+
+        raise LLMResponseError("Groq API rate limits exceeded after maximum retries")
+
 
 
     def _parse_json_object(self, text: str) -> dict[str, Any]:
