@@ -47,7 +47,8 @@ class TestScoutAgent:
         
         response = await scout_agent.classify(request)
         
-        assert response.hazardFlag is False or response.needsFollowup is True
+        # Verify that either a hazard is flagged (for unknown material) or a follow-up is requested
+        assert response.hazardFlag is True or response.needsFollowup is True
     
     @pytest.mark.asyncio
     async def test_classify_hazardous(self):

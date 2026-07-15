@@ -84,7 +84,7 @@ class AlchemistAgent:
             # Step 5: estimate_value
             source_savings = self._estimate_source_savings(
                 request.classification.get("disposalCostPerUnit", 50),
-                best_candidate["estimated_volume"],
+                best_candidate["estimated_volume_capacity"],
             )
             
             target_savings_pct = self._estimate_target_savings_pct(
@@ -144,7 +144,7 @@ class AlchemistAgent:
         """Mock business database for Phase 1a."""
         return [
             {
-                "id": "business-target-1",
+                "id": "00000000-0000-0000-0000-000000000001",
                 "name": "Local Compost Operations",
                 "type": "compost_operation",
                 "lat": 40.715,
@@ -153,7 +153,7 @@ class AlchemistAgent:
                 "estimated_cost": 50,  # $/ton
             },
             {
-                "id": "business-target-2",
+                "id": "00000000-0000-0000-0000-000000000002",
                 "name": "Urban Mushroom Farm",
                 "type": "mushroom_farm",
                 "lat": 40.720,
@@ -162,7 +162,7 @@ class AlchemistAgent:
                 "estimated_cost": 60,
             },
             {
-                "id": "business-target-3",
+                "id": "00000000-0000-0000-0000-000000000003",
                 "name": "Recycling Hub",
                 "type": "recycling_center",
                 "lat": 40.710,

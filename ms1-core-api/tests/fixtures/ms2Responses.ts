@@ -44,7 +44,7 @@ export const classifyResponseFixtures = {
 export const matchResponseFixtures = {
   // High confidence match
   highConfidence: {
-    targetBusinessId: 'business-target-1',
+    targetBusinessId: '00000000-0000-0000-0000-000000000001',
     matchRationale:
       'Local mushroom farm uses spent grain as substrate. Your disposal cost of $45/ton vs. their current compost cost of $80/ton.',
     matchConfidence: 0.92,

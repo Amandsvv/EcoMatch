@@ -1,15 +1,16 @@
 import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import { logger } from './lib/logger';
 import { traceIdMiddleware, errorHandler } from './lib/middleware';
-import authRoutes from './auth/routes';
-import businessesRoutes from './businesses/routes';
-import submissionsRoutes from './submissions/routes';
-import outreachRoutes from './outreach/routes';
-import verificationRoutes from './verification/routes';
-import certificatesRoutes from './certificates/routes';
-import matchesRoutes from './matches/routes';
-import adminRoutes from './admin/routes';
+import authRoutes from './modules/auth/auth.routes';
+import businessesRoutes from './modules/businesses/businesses.routes';
+import submissionsRoutes from './modules/submissions/submissions.routes';
+import outreachRoutes from './modules/outreach/outreach.routes';
+import verificationRoutes from './modules/verification/verification.routes';
+import certificatesRoutes from './modules/certificates/certificates.routes';
+import matchesRoutes from './modules/matches/matches.routes';
+import adminRoutes from './modules/admin/admin.routes';
 
 dotenv.config();
 
@@ -17,6 +18,10 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(traceIdMiddleware);
 
 // Request logging

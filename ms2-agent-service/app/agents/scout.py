@@ -4,6 +4,7 @@ import os
 from app.models import ClassifyRequest, ClassifyResponse
 from app.reference_data.categories import get_all_categories, get_category
 from app.logger import logger
+from app.llm import LLMConfigurationError, LLMResponseError, llm_client
 import time
 
 
@@ -32,18 +33,24 @@ class ScoutAgent:
             # Step 1: parse_input
             parsed_text = self._parse_input(request.rawDescription, request.photoRefs)
             
-            # Step 2: classify_category (mock implementation for Phase 1a)
-            category, subtype = self._classify_category(parsed_text)
+            # Step 2: classify_category (LLM closed-set; local fallback if not configured)
+            category, subtype, llm_confidence, composition = await self._classify_category(
+                request,
+                parsed_text,
+            )
             
             # Step 3: estimate_composition
-            composition = self._estimate_composition(category, parsed_text)
+            if composition is None:
+                composition = self._estimate_composition(category, parsed_text)
             
             # Step 4: compute_confidence
-            confidence = self._compute_confidence(
-                category, 
-                has_photo=bool(request.photoRefs),
-                clarity_score=self._assess_clarity(parsed_text)
-            )
+            confidence = llm_confidence
+            if confidence is None:
+                confidence = self._compute_confidence(
+                    category,
+                    has_photo=bool(request.photoRefs),
+                    clarity_score=self._assess_clarity(parsed_text)
+                )
             
             # Step 5: hazard_check (DETERMINISTIC - fail-safe)
             hazard_flag = not (category in self.categories)  # If not in allowed categories, hazardous
@@ -110,9 +117,63 @@ class ScoutAgent:
             result += " [PHOTO_PRESENT]"
         return result.lower().strip()
     
-    def _classify_category(self, parsed_text: str) -> tuple[str, str | None]:
+    async def _classify_category(
+        self,
+        request: ClassifyRequest,
+        parsed_text: str,
+    ) -> tuple[str, str | None, float | None, dict | None]:
+        """Closed-set classification against the allowed categories."""
+        try:
+            result = await self._classify_category_with_llm(request)
+            category = str(result.get("primaryCategory", "unknown"))
+            subtype = result.get("subtype")
+            confidence = self._coerce_confidence(result.get("confidence"))
+            composition = result.get("estimatedComposition")
+            if not isinstance(composition, dict):
+                composition = None
+            return category, subtype, confidence, composition
+        except (LLMConfigurationError, LLMResponseError) as exc:
+            logger.info("Using local Scout fallback", extra={
+                "submissionId": request.submissionId,
+                "reason": str(exc),
+            })
+            category, subtype = self._classify_category_fallback(parsed_text)
+            return category, subtype, None, None
+
+    async def _classify_category_with_llm(self, request: ClassifyRequest) -> dict:
+        categories = {
+            name: get_category(name)["description"]
+            for name in self.categories
+            if get_category(name)
+        }
+        system_prompt = (
+            "You are EcoMatch's Scout Agent. Classify business waste submissions into "
+            "exactly one allowed category or unknown. Use only the supplied category list. "
+            "Do not decide hazard safety; the application will do that deterministically. "
+            "If the material is toxic, chemical, medical, electronic, contaminated, or not "
+            "clearly one allowed category, return primaryCategory as unknown with low confidence."
+        )
+        return await llm_client.complete_json(
+            system_prompt=system_prompt,
+            operation="scout_classification",
+            user_payload={
+                "submissionId": request.submissionId,
+                "rawDescription": request.rawDescription,
+                "photoRefs": request.photoRefs or [],
+                "allowedCategories": categories,
+                "disposalCostPerUnit": request.disposalCostPerUnit,
+                "disposalFrequency": request.disposalFrequency,
+            },
+            response_schema={
+                "primaryCategory": "one of allowed category keys or unknown",
+                "subtype": "short string or null",
+                "estimatedComposition": "object or null",
+                "confidence": "number from 0.0 to 1.0",
+            },
+        )
+
+    def _classify_category_fallback(self, parsed_text: str) -> tuple[str, str | None]:
         """Closed-set classification against 6 categories."""
-        # Phase 1a: keyword-based mock; real implementation uses LLM
         keywords_map = {
             "organic_biomass": ["food", "scrap", "grain", "ground", "compost", "coffee", "vegetable"],
             "cardboard_paper": ["cardboard", "paper", "box", "packaging", "offset"],
@@ -133,6 +194,14 @@ class ScoutAgent:
         best_score = scores.get(best_category, 0)
         
         return best_category if best_score > 0 else "unknown", None
+
+    def _coerce_confidence(self, value) -> float | None:
+        """Clamp model confidence into [0, 1]."""
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            return None
+        return min(max(confidence, 0.0), 1.0)
     
     def _estimate_composition(self, category: str, parsed_text: str) -> dict | None:
         """Estimate material composition properties."""
@@ -176,3 +245,4 @@ class ScoutAgent:
 
 
 scout_agent = ScoutAgent()
+

@@ -51,7 +51,7 @@ CLASSIFY_HAZARDOUS = ClassifyResponse(
 # ============================================================================
 
 MATCH_HIGH_CONFIDENCE = MatchResponse(
-    targetBusinessId="business-target-1",
+    targetBusinessId="00000000-0000-0000-0000-000000000001",
     matchRationale=(
         "Local Compost Operations uses food scraps, spent grain, coffee grounds, "
         "vegetable waste. Your disposal cost is estimated at $45/ton vs. their "

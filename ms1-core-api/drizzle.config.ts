@@ -8,6 +8,6 @@ export default defineConfig({
   out: './migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://ecomatch:ecomatch@localhost:5433/ecomatch',
+    url: process.env.DATABASE_URL || 'postgresql://ecomatch:ecomatch@127.0.0.1:5433/ecomatch',
   },
 });
