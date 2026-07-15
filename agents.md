@@ -4,18 +4,20 @@
 
 All four agents live inside `ms2-agent-service`, one LangGraph graph per agent, each exposed as one FastAPI endpoint. None of them persist data or send anything — they take structured input, reason, and return structured output. **ms1 owns every side effect** (saving, sending, issuing) — see `architecture.md` §6.
 
+> **v2 note:** The operator-approval gate has been removed from the critical path (see `phases.md` and `rules.md` §4). This changes what the Alchemist Agent's confidence output means (it now directly gates whether a business ever sees a match — see §3 below) and what the Negotiator Agent's drafts are for (an in-platform proposal a business accepts/rejects itself, not an email drafted for an operator to send to a stranger — see §4 below). The Scout and Verification Agents are unaffected by this change.
+
 ---
 
 ## 1. Agent Pipeline at a Glance
 
 ```
-submission ──► Scout Agent ──► hazard check ──► Alchemist Agent ──► operator review
+submission ──► Scout Agent ──► hazard check ──► Alchemist Agent ──► confidence floor (0.7)
                                                                           │
                                                                           ▼
-certificate ◄── Verification Agent ◄── both sides verify ◄── deal agreed ◄── Negotiator Agent ◄── operator approves
+certificate ◄── Verification Agent ◄── both sides verify ◄── both accept ◄── Negotiator Agent ◄── match shown to both businesses
 ```
 
-Each arrow into an agent is one ms1 → ms2 call. Each agent is stateless between calls — all state (what stage a deal is in, who approved what) lives in ms1's database, not in ms2. This means any agent can be re-run safely without side effects; retries are always safe.
+Each arrow into an agent is one ms1 → ms2 call. Each agent is stateless between calls — all state (what stage a deal is in, who accepted what) lives in ms1's database, not in ms2. This means any agent can be re-run safely without side effects; retries are always safe.
 
 ---
 
@@ -59,6 +61,8 @@ If the LLM returns malformed output, retry once with a stricter format instructi
 **Triggered by:** ms1, after a classification passes the hazard check
 **Purpose:** find a plausible nearby business match and explain *why*, grounded in real reference data — not a keyword match, not an ungrounded model guess.
 
+**This agent's confidence output now does more work than before.** With no operator standing between a proposed match and the business that sees it, `matchConfidence` is the only thing separating a plausible match from a weak one reaching a real user. Treat the threshold in this section as a safety-relevant control, not a UI nicety.
+
 ### Internal steps
 
 1. **`retrieve_reference_pairings`** — look up the classified category in `reference_data/` for known compatible business types (e.g. `organic_biomass` → compost operations, mushroom farms, biogas plants). This retrieval happens **before** any rationale is generated — the model reasons from retrieved facts, it doesn't invent the compatibility itself.
@@ -76,9 +80,10 @@ out: { targetBusinessId, matchRationale, matchConfidence, distanceKm,
 ```
 
 ### Confidence handling
-- `matchConfidence < 0.3` → treated as no usable match; ms1 shows "no match found yet," nothing is created
-- `0.3 ≤ matchConfidence < 0.5` → returned, but flagged `lowConfidence: true` so the operator review screen visually calls it out for extra scrutiny
-- `matchConfidence ≥ 0.5` → returned normally
+
+- **`matchConfidence < 0.7` → suppressed.** No `match` row is created, nothing is shown to either business. This replaces the old two-tier scheme (a low-confidence-but-shown band flagged for operator review) — there is no operator to review it now, so the bar for a match to exist at all moves up to what used to be the "return normally" line.
+- **`matchConfidence >= 0.7` → returned normally**, becomes a `match` row, and is shown to both businesses directly.
+- Because this threshold now gates visibility rather than just flagging for review, `ms1` must treat a sub-0.7 result from `/match` exactly the same as `no_candidates_in_radius` (below) — a "no match found yet" state, not a hidden-but-persisted one.
 
 ### Failure handling
 No candidates in radius → return an explicit `no_candidates_in_radius` reason, not an empty/ambiguous response, so ms1 and the frontend can show a clear "no match found yet" state instead of looking broken.
@@ -86,21 +91,24 @@ No candidates in radius → return an explicit `no_candidates_in_radius` reason,
 ### Must never do
 - Reference a business that doesn't exist in the database
 - Generate a compatibility rationale without first completing `retrieve_reference_pairings`
+- Return a result that ms1 could mistake for "confidently matched" when `matchConfidence < 0.7` — the API contract is binary from ms1's perspective: shown or not shown, nothing in between
 
 ---
 
-## 4. Negotiator Agent — Outreach Drafting
+## 4. Negotiator Agent — In-Platform Proposal Drafting
 
 **Endpoint:** `POST /draft`
-**Triggered by:** ms1, only after an operator has approved a match
-**Purpose:** draft two outreach messages and proposed terms — nothing more. This agent has no send capability anywhere in its code path; that's enforced by ms1 owning the send action entirely, not by this agent choosing not to.
+**Triggered by:** ms1, immediately once a match clears the Alchemist confidence floor (0.7) — **not gated on any human approval anymore**
+**Purpose:** draft two proposals — one shown to each business inside their own dashboard — plus terms each business can independently accept or reject. This agent still has no send capability anywhere in its code path, but "send" no longer means "email a stranger": it means "display this proposal in the logged-in business's own account." The recipient is always the business itself, never the other party's inbox directly.
+
+**Why tone still matters even without an outward-facing email:** this is still the first thing a business reads about a potential deal, and it still needs to read as an honest, non-pushy proposal rather than a pressured pitch — the audience just changed from "cold stranger's inbox" to "logged-in user reviewing their own dashboard." See `PRD.md` for the fuller reasoning.
 
 ### Internal steps
 
 1. **`determine_terms`** — compute proposed price/unit (undercutting the source's current disposal fee by a configurable margin), frequency, and default contract length, from `reference_data/` defaults, not invented per-call.
-2. **`draft_source_message`** — LLM call with a tone-controlled system prompt: warm, specific, no pressure tactics, no language implying the deal is already confirmed. This is deliberately the opposite of an aggressive sales tone — see `PRD.md` for why (cold outreach to a stranger reads as spam fast if it's pushy).
-3. **`draft_target_message`** — same, personalized to the target business.
-4. **`self_check_tone`** — a second pass (rule-based checklist, not necessarily another full LLM call) verifying the draft doesn't overpromise, doesn't state binding commitments, and clearly reads as a proposal, not a confirmation.
+2. **`draft_source_message`** — LLM call with a tone-controlled system prompt: warm, specific, no pressure tactics, no language implying the deal is already confirmed. Written for the source business to read on their own dashboard, not to be forwarded anywhere.
+3. **`draft_target_message`** — same, personalized to the target business, for their own dashboard.
+4. **`self_check_tone`** — a second pass (rule-based checklist, not necessarily another full LLM call) verifying the draft doesn't overpromise, doesn't state binding commitments, and clearly reads as a proposal awaiting that business's own accept/reject decision — not a confirmation, and not something implying the other party has already agreed.
 
 ### Input / Output
 
@@ -109,12 +117,15 @@ in:  { match, sourceBusiness, targetBusiness }
 out: { sourceDraft: { message, terms }, targetDraft: { message, terms } }
 ```
 
+Neither draft includes the other business's contact details (`phone`/`address`) — those are never part of this agent's output, at any stage (`rules.md` §4.2, `schema.md` §3).
+
 ### Failure handling
-If a draft fails the tone self-check, regenerate once with stricter constraints. Cap at two attempts total — if still failing, return the best-effort draft with a flag so the operator knows to rewrite it manually rather than looping indefinitely.
+If a draft fails the tone self-check, regenerate once with stricter constraints. Cap at two attempts total — if still failing, return the best-effort draft with a flag so ms1 can route it to the admin queue for a manual rewrite (a spot-check/exception path, not a required step — see `architecture.md` §6) rather than looping indefinitely.
 
 ### Must never do
-- Send anything — this agent only returns drafts, ever (`rules.md` §4.2)
-- Imply the deal is confirmed or binding in either draft
+- Send anything, to anyone — this agent only returns drafts for in-platform display, ever (`rules.md` §4.2)
+- Include either business's contact details in the drafted content
+- Imply the deal is confirmed, binding, or that the other party has already accepted
 
 ---
 
@@ -160,12 +171,12 @@ Each agent is one compiled LangGraph `StateGraph`, built once at service startup
 | Agent | Threshold | Behavior |
 |---|---|---|
 | Scout | confidence < 0.7 | trigger one follow-up question |
-| Alchemist | confidence < 0.3 | no match returned |
-| Alchemist | 0.3 ≤ confidence < 0.5 | returned, flagged `lowConfidence` for operator |
-| Negotiator | tone self-check fails twice | return best-effort draft, flagged for manual rewrite |
+| Alchemist | matchConfidence < 0.7 | **suppressed** — no match row created, nothing shown to either business |
+| Alchemist | matchConfidence >= 0.7 | returned normally, shown to both businesses |
+| Negotiator | tone self-check fails twice | return best-effort draft, flagged for admin manual rewrite (exception path, not required) |
 
-These numbers are defaults, not settled science — see `phases.md` Phase 1 pilot exit checklist for where real calibration data should come from before adjusting them.
+These numbers are defaults, not settled science — see `phases.md` Phase 1 pilot exit checklist for where real calibration data should come from before adjusting them. The Alchemist's 0.7 floor in particular should be revisited once real pilot outcomes exist, since it's now doing safety-relevant work that used to be split between the model and an operator.
 
 ## 8. Testing Agents Locally
 
-Every agent endpoint should have sample payloads in `ms2-agent-service/tests/fixtures/` covering: a clean high-confidence case, a low-confidence case, a hazardous-category case, and a malformed-input case. ms1 can mock against these same fixtures while ms2 is still being built in parallel — see the Phase 1a local setup prompts for how this fits into independent service development.
+Every agent endpoint should have sample payloads in `ms2-agent-service/tests/fixtures/` covering: a clean high-confidence case, a below-0.7-confidence case (must be suppressed for Alchemist, must trigger follow-up for Scout), a hazardous-category case, and a malformed-input case. ms1 can mock against these same fixtures while ms2 is still being built in parallel — see the Phase 1a local setup prompts for how this fits into independent service development.

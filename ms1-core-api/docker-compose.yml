@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ecomatch
+      POSTGRES_PASSWORD: ecomatch
+      POSTGRES_DB: ecomatch
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ecomatch']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ms1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: postgresql://ecomatch:ecomatch@postgres:5432/ecomatch
+      JWT_SECRET: dev-secret-key-change-in-production
+      MS2_BASE_URL: http://ms2:8000
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  postgres_data:

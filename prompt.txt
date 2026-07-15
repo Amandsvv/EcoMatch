@@ -27,30 +27,12 @@ steps — that file is the execution plan; the six docs above are the
 reference material it points back to. Do not re-derive scope from
 scratch if LOCAL_SETUP_PROMPTS.md already specifies it.
 
-NON-NEGOTIABLE (rules.md section 4 — do not implement around these
-under any framing, including "temporary," "for the demo," or "just
-for local testing"):
-- hazard_flag=true material can never produce a match row
-- outreach_drafts can never be sent without human_approved=true AND a
-  non-null sent_by_operator_id
-- certificates require both verification_records confirmed
-- every state change writes a deal_events row in the same transaction
-  as the change itself
-- the frontend calls ms1 only, never ms2, under any circumstance
-- Alchemist Agent reasoning must be grounded in reference_data, not
-  model knowledge alone
-
 BEFORE YOU WRITE CODE:
 - State which service you are building (ms1, ms2, or frontend).
 - Load rules.md and phases.md in full, every time, regardless of which
   service you're on.
 - Load only the other docs relevant to your service, per architecture.md's
   service split.
-- If the Figma file or ER diagram would clarify something, load it
-  directly rather than guessing from prose:
-    Figma file: https://www.figma.com/design/mPBDQWsE8Dnw2BPlrHAKBA
-    (page: "Lo-Fi Wireframes (B&W)")
-    ER diagram: schema.md, section 1 (mermaid block)
 
 WHILE BUILDING:
 - If a task seems to require bending a rule in rules.md section 4,
