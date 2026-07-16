@@ -4,6 +4,9 @@ import { SubmissionsRepository } from './submissions.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import MS2Client from '../../lib/ms2Client';
+import { sendEmail } from '../../lib/mailer';
+import { matchProposalEmailHtml } from '../../lib/email-templates';
+
 
 export class SubmissionsService {
   private repository: SubmissionsRepository;
@@ -306,12 +309,54 @@ export class SubmissionsService {
       matchConfidence: matchResult.matchConfidence,
     });
 
-    // Stub: Send SES notifications
-    logger.info('SES notification stub - would send login prompt to both businesses', {
-      matchId,
-      sourceBusinessId: businessId,
-      targetBusinessId: matchResult.targetBusinessId,
+    // Send real SES notifications
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const dashboardUrl = `${frontendUrl}/dashboard`;
+
+    // Fetch user emails
+    Promise.all([
+      this.repository.getUserById(business.userId),
+      this.repository.getUserById(targetBusiness.userId)
+    ]).then(([sourceUser, targetUser]) => {
+      if (sourceUser?.email) {
+        sendEmail(
+          sourceUser.email,
+          '♻️ New Symbiosis Match Proposed',
+          matchProposalEmailHtml({
+            businessName: business.name,
+            partnerBusinessName: targetBusiness.name,
+            matchRationale: matchResult.matchRationale,
+            matchConfidence: matchResult.matchConfidence,
+            estimatedSavings: matchResult.estimatedSourceSavings,
+            proposedTerms: draftResult.sourceDraft.terms,
+            draftMessage: draftResult.sourceDraft.message,
+            dashboardUrl,
+            role: 'source'
+          })
+        ).catch(err => logger.error('Failed to send source match proposal email', { error: err.message }));
+      }
+
+      if (targetUser?.email) {
+        sendEmail(
+          targetUser.email,
+          '♻️ New Symbiosis Match Proposed',
+          matchProposalEmailHtml({
+            businessName: targetBusiness.name,
+            partnerBusinessName: business.name,
+            matchRationale: matchResult.matchRationale,
+            matchConfidence: matchResult.matchConfidence,
+            estimatedSavings: null,
+            proposedTerms: draftResult.targetDraft.terms,
+            draftMessage: draftResult.targetDraft.message,
+            dashboardUrl,
+            role: 'target'
+          })
+        ).catch(err => logger.error('Failed to send target match proposal email', { error: err.message }));
+      }
+    }).catch(err => {
+      logger.error('Failed to resolve users for match email notifications', { error: err.message });
     });
+
 
     return {
       submissionId,

@@ -28,4 +28,31 @@ export class AuthController {
       next(error);
     }
   };
+
+  verifyEmail = async (req: Request, res: Response) => {
+    try {
+      const token = req.query.token as string;
+      await this.service.verifyEmail(token);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/login?verified=true`);
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/login?error=${encodeURIComponent((error as any).message || 'Verification failed')}`);
+    }
+  };
+
+  deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.userId;
+      const result = await this.service.deleteAccount(userId!);
+      logger.info('User account deleted', { traceId: req.traceId, userId });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+
+
+
+

@@ -35,6 +35,9 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   role: userRoleEnum('role').notNull().default('business'),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  emailVerificationToken: varchar('email_verification_token', { length: 255 }),
+  emailVerificationExpiry: timestamp('email_verification_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

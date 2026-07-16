@@ -3,8 +3,9 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from './auth.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
-
 import { logger } from '../../lib/logger';
+import { sendEmail } from '../../lib/mailer';
+import { verificationEmailHtml } from '../../lib/email-templates';
 
 export class AuthService {
   private repository: AuthRepository;
@@ -71,12 +72,18 @@ export class AuthService {
     const userId = uuidv4();
     const businessId = uuidv4();
 
+    const verificationToken = uuidv4();
+    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     await this.repository.createUserAndBusiness(
       {
         id: userId,
         email,
         passwordHash,
         role: 'business',
+        emailVerified: false,
+        emailVerificationToken: verificationToken,
+        emailVerificationExpiry: verificationExpiry,
       },
       {
         id: businessId,
@@ -90,6 +97,18 @@ export class AuthService {
       }
     );
 
+    // Send verification email in background
+    const backendUrl = `http://localhost:${process.env.PORT || 4000}`;
+    const verifyUrl = `${backendUrl}/auth/verify-email?token=${verificationToken}`;
+    
+    sendEmail(
+      email,
+      `Verify your EcoMatch account — ${businessName}`,
+      verificationEmailHtml(businessName, verifyUrl)
+    ).catch((err) => {
+      logger.error('Failed to send verification email', { email, error: err.message });
+    });
+
     const token = jwt.sign(
       { userId, role: 'business', email },
       process.env.JWT_SECRET || 'secret',
@@ -100,7 +119,6 @@ export class AuthService {
   }
 
   async login(params: any) {
-
     const { email, password } = params;
 
     if (!email || !password) {
@@ -115,6 +133,10 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {
       throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid email or password');
+    }
+
+    if (!user.emailVerified) {
+      throw new AppError(ErrorCodes.UNAUTHORIZED, 401, 'Please verify your email address before logging in.');
     }
 
     const token = jwt.sign(
@@ -133,4 +155,41 @@ export class AuthService {
 
     return { token, userId: user.id, businessId, role: user.role };
   }
+
+  async verifyEmail(token: string) {
+    if (!token) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Verification token is required');
+    }
+
+    const user = await this.repository.getUserByVerificationToken(token);
+    if (!user) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Invalid or expired verification token');
+    }
+
+    const expiry = user.emailVerificationExpiry;
+    if (expiry && new Date() > new Date(expiry)) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Verification token has expired');
+    }
+
+    await this.repository.markEmailVerified(user.id);
+    logger.info('Email verified successfully', { userId: user.id, email: user.email });
+    return { success: true };
+  }
+
+  async deleteAccount(userId: string) {
+    if (!userId) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'User ID is required');
+    }
+
+    const user = await this.repository.getUserById(userId);
+    if (!user) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 404, 'User not found');
+    }
+
+    await this.repository.deleteUser(userId);
+    logger.info('User account deleted successfully', { userId, email: user.email });
+    return { success: true };
+  }
 }
+
+

@@ -12,6 +12,28 @@ export class AuthRepository {
     return result[0] || null;
   }
 
+  async getUserByVerificationToken(token: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.emailVerificationToken, token))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async markEmailVerified(userId: string) {
+    const db = getDb();
+    await db
+      .update(schema.users)
+      .set({
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationExpiry: null,
+      })
+      .where(eq(schema.users.id, userId));
+  }
+
   async getBusinessByUserId(userId: string) {
     const db = getDb();
     const result = await db
@@ -23,7 +45,15 @@ export class AuthRepository {
   }
 
   async createUserAndBusiness(
-    userData: { id: string; email: string; passwordHash: string; role: 'business' | 'admin' },
+    userData: {
+      id: string;
+      email: string;
+      passwordHash: string;
+      role: 'business' | 'admin';
+      emailVerified: boolean;
+      emailVerificationToken?: string | null;
+      emailVerificationExpiry?: Date | null;
+    },
     businessData: {
       id: string;
       userId: string;
@@ -41,4 +71,20 @@ export class AuthRepository {
       await tx.insert(schema.businesses).values(businessData);
     });
   }
+
+  async getUserById(userId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async deleteUser(userId: string) {
+    const db = getDb();
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
+  }
 }
+
