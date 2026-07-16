@@ -1,6 +1,82 @@
 """Test suite for ms2 agents."""
 
+import os
+# Configure mock environment before importing application components
+os.environ["USE_LLM"] = "true"
+os.environ["ANTHROPIC_API_KEY"] = "mock_key_for_testing"
+
 import pytest
+from unittest.mock import patch
+from app.llm import LLMClient
+
+# Mock complete_json to simulate LLM responses during tests
+async def mock_complete_json(self, *, system_prompt: str, user_payload: dict, response_schema: dict, operation: str):
+    if operation == "scout_full_classify":
+        desc = user_payload.get("description", "").lower()
+        if "toxic" in desc or "chemical" in desc:
+            return {
+                "primaryCategory": "unknown",
+                "subtype": None,
+                "estimatedComposition": None,
+                "confidence": 0.3,
+                "hazardFlag": True,
+                "needsFollowup": False,
+                "followupQuestion": None
+            }
+        elif "some material" in desc or len(desc) < 25:
+            return {
+                "primaryCategory": "unknown",
+                "subtype": None,
+                "estimatedComposition": None,
+                "confidence": 0.5,
+                "hazardFlag": False,
+                "needsFollowup": True,
+                "followupQuestion": "Could you please specify the composition of the material?"
+            }
+        else:
+            return {
+                "primaryCategory": "organic_biomass",
+                "subtype": "food_scraps",
+                "estimatedComposition": {"nitrogen": 2.5, "carbon": 45.0, "moisture": 60.0},
+                "confidence": 0.95,
+                "hazardFlag": False,
+                "needsFollowup": False,
+                "followupQuestion": None
+            }
+    elif operation == "alchemist_score_and_match":
+        return {
+            "targetBusinessId": "00000000-0000-0000-0000-000000000001",
+            "matchRationale": "Composting is highly compatible with organic biomass.",
+            "matchConfidence": 0.9,
+            "estimatedSourceSavings": 240.0,
+            "estimatedTargetSavingsPct": 45.0
+        }
+    elif operation == "negotiator_determine_terms":
+        return {
+            "pricePerUnit": 10.0,
+            "frequency": "weekly",
+            "contractLengthMonths": 12
+        }
+    elif operation in ("negotiator_source_draft", "negotiator_target_draft"):
+        return {
+            "message": "Hi, this is a dashboard proposal for you."
+        }
+    elif operation == "verification_estimate_volume":
+        return {
+            "volumeTonsPerMonth": 5.0,
+            "estimated": False
+        }
+    elif operation == "verification_sanity_check":
+        return {
+            "plausible": true,
+            "reason": None
+        }
+    return {}
+
+# Apply the patch globally for all tests in this module
+patcher = patch.object(LLMClient, "complete_json", new=mock_complete_json)
+patcher.start()
+
 from app.models import (
     ClassifyRequest,
     MatchRequest,
@@ -11,6 +87,7 @@ from app.agents.scout import scout_agent
 from app.agents.alchemist import alchemist_agent
 from app.agents.negotiator import negotiator_agent
 from app.agents.verification import verification_agent
+
 
 
 class TestScoutAgent:
