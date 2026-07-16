@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRepository } from './auth.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 
+import { logger } from '../../lib/logger';
+
 export class AuthService {
   private repository: AuthRepository;
 
@@ -12,15 +14,55 @@ export class AuthService {
   }
 
   async signup(params: any) {
-    const { email, password, businessName, businessType, address, lat, lng, phone } = params;
+    const { email, password, businessName, businessType, address, lat, lng, phone, state, area, pincode } = params;
 
-    if (!email || !password || !businessName || !businessType || !address || lat === undefined || lng === undefined || !phone) {
+    if (!email || !password || !businessName || !businessType || !address || !phone) {
       throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Missing required fields');
     }
 
     const existingUser = await this.repository.getUserByEmail(email);
     if (existingUser) {
       throw new AppError(ErrorCodes.USER_ALREADY_EXISTS, 409, 'User with this email already exists');
+    }
+
+    let latitude = lat;
+    let longitude = lng;
+
+    if (latitude === undefined || longitude === undefined) {
+      if (!state || !area || !pincode) {
+        throw new AppError(
+          ErrorCodes.INVALID_REQUEST,
+          400,
+          'Location coordinates are missing. Please provide latitude/longitude, or address details (state, area, pincode) for geocoding.'
+        );
+      }
+
+      const apiKey = process.env.OPENCAGE_API_KEY;
+      if (!apiKey || apiKey === 'your_opencage_api_key_here') {
+        logger.warn('OpenCage API key is not configured. Falling back to default mock coordinates.');
+        latitude = 40.715 + (Math.random() - 0.5) * 0.01;
+        longitude = -74.008 + (Math.random() - 0.5) * 0.01;
+      } else {
+        const query = `${address}, ${area}, ${state}, ${pincode}`;
+        const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=${apiKey}`;
+        
+        try {
+          const axios = require('axios');
+          const geoRes = await axios.get(url);
+          if (geoRes.data && geoRes.data.results && geoRes.data.results.length > 0) {
+            latitude = geoRes.data.results[0].geometry.lat;
+            longitude = geoRes.data.results[0].geometry.lng;
+          } else {
+            throw new Error('No coordinates found for the provided location');
+          }
+        } catch (error: any) {
+          throw new AppError(
+            ErrorCodes.INVALID_REQUEST,
+            400,
+            `Geocoding failed: ${error.message || 'Unknown geocoding error'}`
+          );
+        }
+      }
     }
 
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
@@ -42,8 +84,8 @@ export class AuthService {
         name: businessName,
         type: businessType,
         address,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
+        lat: parseFloat(latitude),
+        lng: parseFloat(longitude),
         phone,
       }
     );
@@ -58,6 +100,7 @@ export class AuthService {
   }
 
   async login(params: any) {
+
     const { email, password } = params;
 
     if (!email || !password) {

@@ -12,19 +12,21 @@ export class VerificationController {
   submitEvidence = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { matchId } = req.params;
-      const { evidenceType } = req.body;
-      const result = await this.service.submitEvidence(matchId, evidenceType, req.userId!);
+      const { evidenceType, evidenceUrl } = req.body;
+      const result = await this.service.submitEvidence(matchId, evidenceType, evidenceUrl, req.userId!);
       logger.info('Verification evidence submitted', {
         traceId: req.traceId,
         matchId,
         verificationId: result.verificationId,
         evidenceType,
+        evidenceUrl,
       });
       res.status(201).json(result);
     } catch (error) {
       next(error);
     }
   };
+
 
   confirmVerification = async (req: Request, res: Response, next: NextFunction) => {
     try {

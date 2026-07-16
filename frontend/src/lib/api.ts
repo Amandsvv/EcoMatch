@@ -65,9 +65,29 @@ export const api = {
   rejectMatch: (matchId: string) => request(`/outreach/${matchId}/reject`, { method: 'POST' }),
 
   // Verification
-  submitEvidence: (matchId: string, body: { evidenceType: string }) => request(`/verification/${matchId}/submit`, { method: 'POST', body: JSON.stringify(body) }),
+  submitEvidence: (matchId: string, body: { evidenceType: string; evidenceUrl?: string }) => request(`/verification/${matchId}/submit`, { method: 'POST', body: JSON.stringify(body) }),
   confirmVerification: (matchId: string, body: { businessId: string }) => request(`/verification/${matchId}/confirm`, { method: 'POST', body: JSON.stringify(body) }),
   getVerificationRecords: (matchId: string) => request(`/verification/${matchId}`),
+
+  // Uploads
+  uploadPhoto: (formData: FormData) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ecomatch_token') : null;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(`${BASE_URL}/uploads`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      return response.json();
+    });
+  },
 
   // Certificates
   getCertificate: (matchId: string) => request(`/certificates/match/${matchId}`),
@@ -80,3 +100,4 @@ export const api = {
   createAdminHauler: (body: any) => request('/admin/haulers', { method: 'POST', body: JSON.stringify(body) }),
   getAdminBusinesses: () => request('/admin/businesses'),
 };
+

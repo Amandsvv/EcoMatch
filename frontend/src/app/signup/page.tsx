@@ -12,25 +12,17 @@ export default function Signup() {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('restaurant');
   const [address, setAddress] = useState('');
+  const [area, setArea] = useState('');
+  const [state, setState] = useState('');
+  const [pincode, setPincode] = useState('');
   const [phone, setPhone] = useState('');
-  const [lat, setLat] = useState('40.715');
-  const [lng, setLng] = useState('-74.008');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUseMockLocation = () => {
-    // Generates a location near the target businesses
-    const jitterLat = 40.715 + (Math.random() - 0.5) * 0.01;
-    const jitterLng = -74.008 + (Math.random() - 0.5) * 0.01;
-    setLat(jitterLat.toFixed(5));
-    setLng(jitterLng.toFixed(5));
-    setAddress('123 Broadway, New York, NY 10006');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !businessName || !address || !phone || !lat || !lng) {
+    if (!email || !password || !businessName || !address || !area || !state || !pincode || !phone) {
       setError('Please fill in all fields');
       return;
     }
@@ -44,9 +36,10 @@ export default function Signup() {
         businessName,
         businessType,
         address,
+        area,
+        state,
+        pincode,
         phone,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
       });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check inputs.');
@@ -171,55 +164,57 @@ export default function Signup() {
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="123 Main St, New York, NY"
+              placeholder="123 Broadway"
               className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
               disabled={loading}
               required
             />
           </div>
 
-          {/* Geo Coordinates for matching */}
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-900 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
-                <MapPin className="h-4 w-4 mr-1 text-emerald-400" />
-                Geocoding Coordinates
-              </span>
-              <button
-                type="button"
-                onClick={handleUseMockLocation}
-                className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                Area / Locality
+              </label>
+              <input
+                type="text"
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                placeholder="Manhattan"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
                 disabled={loading}
-              >
-                Autofill NY Dev Zone
-              </button>
+                required
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] text-slate-500 font-semibold mb-1">LATITUDE</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg px-3 py-1.5 text-xs outline-none"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-slate-500 font-semibold mb-1">LONGITUDE</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg px-3 py-1.5 text-xs outline-none"
-                  disabled={loading}
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                State
+              </label>
+              <input
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                placeholder="NY"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                disabled={loading}
+                required
+              />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              Pincode / ZIP Code
+            </label>
+            <input
+              type="text"
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value)}
+              placeholder="10006"
+              className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+              disabled={loading}
+              required
+            />
           </div>
 
           <button
@@ -237,6 +232,7 @@ export default function Signup() {
             )}
           </button>
         </form>
+
 
         {/* Redirect */}
         <div className="mt-6 text-center text-sm text-slate-400 border-t border-slate-900/60 pt-4">

@@ -36,6 +36,29 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
   const [certificate, setCertificate] = useState<any>(null);
 
   const [evidenceType, setEvidenceType] = useState('receipt');
+  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+
+  const handleEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingEvidence(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const response = await api.uploadPhoto(formData);
+      setEvidenceUrl(response.url);
+    } catch (err: any) {
+      setError(err.message || 'File upload failed. Please try again.');
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
   
   useEffect(() => {
     fetchDealData();
@@ -77,8 +100,8 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
     setError(null);
     setActionLoading(true);
     try {
-      // 1. Submit evidence type
-      await api.submitEvidence(match.id, { evidenceType });
+      // 1. Submit evidence type and url
+      await api.submitEvidence(match.id, { evidenceType, evidenceUrl });
       // 2. Confirm evidence for this business
       await api.confirmVerification(match.id, { businessId: user?.businessId || '' });
       
@@ -90,6 +113,7 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
       setActionLoading(false);
     }
   };
+
 
   const handleIssueCertificate = async () => {
     if (!match) return;
@@ -295,19 +319,65 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
                 </div>
               </div>
 
+              <div>
+                <label className="block text-[10px] text-slate-500 font-semibold mb-2">UPLOAD EVIDENCE DOCUMENT / PHOTO</label>
+                {evidenceUrl ? (
+                  <div className="bg-slate-900 border border-emerald-500/20 p-3.5 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img src={evidenceUrl} alt="Evidence Upload" className="h-10 w-10 rounded-lg object-cover border border-slate-800" />
+                      <div>
+                        <span className="text-xs font-bold text-white block">Document Uploaded</span>
+                        <span className="text-[10px] text-slate-500 block truncate max-w-[180px]">{evidenceUrl}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEvidenceUrl('')}
+                      className="text-xs text-red-400 hover:text-red-300 font-semibold"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900 border border-slate-800 border-dashed rounded-xl p-5 text-center hover:border-emerald-500/50 transition-all relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEvidenceUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={uploadingEvidence || actionLoading}
+                    />
+                    <div className="flex flex-col items-center justify-center space-y-1.5">
+                      {uploadingEvidence ? (
+                        <>
+                          <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+                          <span className="text-[10px] font-semibold text-slate-400">Uploading to Cloudinary...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-6 w-6 text-slate-500" />
+                          <span className="text-xs text-slate-400">Click to select receipt or photo file</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
-                disabled={actionLoading}
+                disabled={actionLoading || uploadingEvidence || !evidenceUrl}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center disabled:opacity-50"
               >
                 {actionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                   <>
                     <UploadCloud className="h-4 w-4 mr-2" />
-                    Upload & Confirm Verification
+                    Confirm Verification
                   </>
                 )}
               </button>
             </form>
+
           )}
         </div>
 

@@ -147,10 +147,12 @@ export const verificationRecords = pgTable('verification_records', {
     .notNull()
     .references(() => businesses.id, { onDelete: 'cascade' }),
   evidenceType: varchar('evidence_type', { length: 255 }).notNull(), // 'photo' or 'receipt'
+  evidenceUrl: text('evidence_url'),
   confirmed: boolean('confirmed').notNull().default(false),
   confirmedAt: timestamp('confirmed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
 
 // Certificates table
 export const certificates = pgTable('certificates', {

@@ -27,6 +27,28 @@ export default function SubmitSurplus() {
   const [cost, setCost] = useState('50');
   const [frequency, setFrequency] = useState('monthly');
   const [photoRef, setPhotoRef] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const response = await api.uploadPhoto(formData);
+      setPhotoRef(response.url);
+    } catch (err: any) {
+      setError(err.message || 'Photo upload failed. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -166,22 +188,53 @@ export default function SubmitSurplus() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Photo Reference URL (Optional)
+                Upload Material Photo (Optional)
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600">
-                  <Camera className="h-4 w-4" />
+              
+              {photoRef ? (
+                <div className="bg-slate-950 border border-emerald-500/20 p-4 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <img src={photoRef} alt="Surplus Upload" className="h-12 w-12 rounded-lg object-cover border border-slate-800" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Image Uploaded Successfully</span>
+                      <span className="text-[10px] text-slate-500 block truncate max-w-[200px]">{photoRef}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoRef('')}
+                    className="text-xs text-red-400 hover:text-red-300 font-semibold"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  value={photoRef}
-                  onChange={(e) => setPhotoRef(e.target.value)}
-                  placeholder="https://example.com/waste_image.jpg"
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl pl-9 pr-4 py-3 text-sm placeholder-slate-600 transition-all outline-none"
-                  disabled={loading}
-                />
-              </div>
+              ) : (
+                <div className="bg-slate-950 border border-slate-800 border-dashed rounded-xl p-6 text-center hover:border-emerald-500/50 transition-all relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer animate-pulse"
+                    disabled={uploadingPhoto || loading}
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    {uploadingPhoto ? (
+                      <>
+                        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+                        <span className="text-xs font-semibold text-slate-400 animate-pulse">Uploading to Cloudinary...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-8 w-8 text-slate-500" />
+                        <span className="text-xs font-semibold text-slate-400">Click or drag photo here to upload</span>
+                        <span className="text-[10px] text-slate-600">Supports PNG, JPG, GIF up to 10MB</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
 
             <button
               type="submit"

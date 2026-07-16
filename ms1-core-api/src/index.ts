@@ -11,6 +11,7 @@ import verificationRoutes from './modules/verification/verification.routes';
 import certificatesRoutes from './modules/certificates/certificates.routes';
 import matchesRoutes from './modules/matches/matches.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import uploadRoutes from './modules/upload/upload.routes';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/verification', verificationRoutes);
 app.use('/certificates', certificatesRoutes);
 app.use('/matches', matchesRoutes);
 app.use('/admin', adminRoutes);
+app.use('/uploads', uploadRoutes);
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {

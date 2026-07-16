@@ -9,7 +9,7 @@ export class VerificationService {
     this.repository = repository;
   }
 
-  async submitEvidence(matchId: string, evidenceType: string, userId: string) {
+  async submitEvidence(matchId: string, evidenceType: string, evidenceUrl: string | undefined, userId: string) {
     if (!evidenceType) {
       throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Evidence type is required');
     }
@@ -48,6 +48,7 @@ export class VerificationService {
         matchId,
         businessId,
         evidenceType,
+        evidenceUrl: evidenceUrl || null,
         confirmed: false,
       };
       await this.repository.createVerificationAndLog(verification, dealEvent);
@@ -58,6 +59,7 @@ export class VerificationService {
 
     return { success: true, verificationId };
   }
+
 
   async confirmVerification(matchId: string, businessId: string, userId: string) {
     if (!businessId) {
