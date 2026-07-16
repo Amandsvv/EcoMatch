@@ -98,6 +98,12 @@ export const api = {
   getAdminEvents: () => request('/admin/monitoring/events'),
   getAdminHaulers: () => request('/admin/haulers'),
   createAdminHauler: (body: any) => request('/admin/haulers', { method: 'POST', body: JSON.stringify(body) }),
+  // User Management
+  getBusinessProfile: (businessId: string) => request(`/businesses/${businessId}`),
+  updateProfile: (businessId: string, body: any) => request(`/businesses/${businessId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAccount: () => request('/auth/account', { method: 'DELETE' }),
   getAdminBusinesses: () => request('/admin/businesses'),
 };
+
+
 

@@ -19,6 +19,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (signupData: any) => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<void>;
+  updateUser: (updatedUser: Partial<User>) => void;
   isAuthenticated: boolean;
 }
 
@@ -90,27 +92,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (signupData: any) => {
     try {
-      const response = await api.signup(signupData);
-      
-      const userObj: User = {
-        id: response.userId,
-        email: response.email,
-        role: response.role,
-        businessId: response.businessId,
-        businessName: response.businessName,
-      };
-
-      localStorage.setItem('ecomatch_token', response.token);
-      localStorage.setItem('ecomatch_user', JSON.stringify(userObj));
-      
-      setToken(response.token);
-      setUser(userObj);
-
-      router.push('/dashboard');
+      await api.signup(signupData);
+      router.push('/verify-pending');
     } catch (err) {
       throw err;
     }
   };
+
 
   const logout = () => {
     localStorage.removeItem('ecomatch_token');
@@ -118,6 +106,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     router.push('/login');
+  };
+
+  const deleteAccount = async () => {
+    try {
+      await api.deleteAccount();
+      logout();
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const updateUser = (updatedUser: Partial<User>) => {
+    if (!user) return;
+    const newContext = { ...user, ...updatedUser };
+    setUser(newContext);
+    localStorage.setItem('ecomatch_user', JSON.stringify(newContext));
   };
 
   return (
@@ -129,6 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         signup,
         logout,
+        deleteAccount,
+        updateUser,
         isAuthenticated: !!token,
       }}
     >

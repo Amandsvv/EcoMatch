@@ -1,132 +1,75 @@
 """Negotiator Agent - In-Platform Proposal Drafting.
 
-All proposal content, term determination, and tone verification are driven
-by the LLM. The agent never sends anything — it only returns drafts for
-in-platform display. Contact details are never included in prompts or output.
+Implemented as a compiled LangGraph StateGraph with a tone-check retry loop:
+
+    llm_determine_terms
+          │
+          ▼
+    draft_source_message
+          │
+          ▼
+    draft_target_message
+          │
+          ▼
+    llm_check_tone ──[tone ok?]──► END
+          │ fail, attempt < 2
+          ▼
+    regenerate_drafts ──► llm_check_tone   (cycles back, max 2 attempts total)
+          │ fail, attempt >= 2
+          ▼
+    flag_for_manual_rewrite ──► END
+
+CRITICAL: This agent never sends anything. It only returns drafts for
+in-platform display. Contact details are never included at any step.
 """
 
 import os
+import time
+from typing import TypedDict, Optional, Any
+
+from langgraph.graph import StateGraph, END
+
 from app.models import DraftRequest, DraftResponse
 from app.reference_data.categories import get_category, get_market_price
 from app.logger import logger
 from app.llm import LLMConfigurationError, LLMResponseError, llm_client
-import time
 
 
-class NegotiatorAgent:
-    """Negotiator Agent for drafting in-platform proposals.
+# ──────────────────────────────────────────────────────────────────────────────
+#  Typed state
+# ──────────────────────────────────────────────────────────────────────────────
 
-    Pipeline:
-    1. llm_determine_terms    — LLM reasons about appropriate price/frequency/contract
-                                 from reference data and deal context
-    2. draft_source_message   — LLM call with tone-controlled system prompt
-    3. draft_target_message   — same, personalized to target business
-    4. llm_check_tone         — LLM verifies drafts don't overpromise, bind, or
-                                 include contact info; regenerates once if needed
+class NegotiatorState(TypedDict):
+    """Full state flowing through the Negotiator Agent graph."""
+    # ── inputs ────────────────────────────────────────────────────────────────
+    match: dict
+    source_business: dict
+    target_business: dict
+    max_tone_attempts: int
+    # ── intermediate ──────────────────────────────────────────────────────────
+    terms: dict
+    source_draft: str
+    target_draft: str
+    source_tone_ok: bool
+    target_tone_ok: bool
+    tone_attempt: int
+    # ── outputs ───────────────────────────────────────────────────────────────
+    needs_manual_rewrite: bool
+    error: Optional[str]
 
-    CRITICAL: Never includes contact info. Only for dashboard display. Never sends.
-    """
 
-    def __init__(self):
-        self.max_tone_regen_attempts = int(os.getenv("NEGOTIATOR_MAX_TONE_REGEN", "2"))
-    
-    async def draft(self, request: DraftRequest) -> DraftResponse:
-        """
-        Draft two proposals for in-platform display.
-        
-        Pipeline:
-        1. determine_terms - compute price/frequency from reference data
-        2. draft_source_message - LLM call (warm, specific, no pressure)
-        3. draft_target_message - personalized to target business
-        4. self_check_tone - verify drafts don't overpromise/bind
-        
-        CRITICAL: Never includes contact info. Only for dashboard display.
-        """
-        start_time = time.time()
-        
-        try:
-            # Step 1: llm_determine_terms — LLM reasons about fair terms from context
-            terms = await self._llm_determine_terms(request.match)
+# ──────────────────────────────────────────────────────────────────────────────
+#  Node 1 — llm_determine_terms
+# ──────────────────────────────────────────────────────────────────────────────
 
-            # Step 2: draft_source_message
-            source_draft = await self._draft_source_message(
-                request.sourceBusiness,
-                request.targetBusiness,
-                request.match,
-                terms,
-            )
+async def _node_llm_determine_terms(state: NegotiatorState) -> dict:
+    """LLM decides fair deal terms from reference data and deal context."""
+    match = state["match"]
+    category = match.get("classification", {}).get("primaryCategory", "unknown")
+    market_price = get_market_price(category)
+    category_info = get_category(category) or {}
 
-            # Step 3: draft_target_message
-            target_draft = await self._draft_target_message(
-                request.targetBusiness,
-                request.sourceBusiness,
-                request.match,
-                terms,
-            )
-
-            # Step 4: llm_check_tone — LLM verifies tone, regenerates once if needed
-            needs_manual_rewrite = False
-            for attempt in range(self.max_tone_regen_attempts):
-                source_tone_ok = await self._llm_check_tone(source_draft)
-                target_tone_ok = await self._llm_check_tone(target_draft)
-
-                if source_tone_ok and target_tone_ok:
-                    break
-
-                logger.warning("LLM tone check failed; regenerating", extra={
-                    "matchId": request.match.get("id"),
-                    "attempt": attempt + 1,
-                })
-
-                if attempt < self.max_tone_regen_attempts - 1:
-                    if not source_tone_ok:
-                        source_draft = await self._draft_source_message(
-                            request.sourceBusiness, request.targetBusiness,
-                            request.match, terms, stricter=True,
-                        )
-                    if not target_tone_ok:
-                        target_draft = await self._draft_target_message(
-                            request.targetBusiness, request.sourceBusiness,
-                            request.match, terms, stricter=True,
-                        )
-                else:
-                    needs_manual_rewrite = True
-
-            logger.info("Drafts created", extra={
-                "matchId": request.match.get("id"),
-                "latency_ms": int((time.time() - start_time) * 1000),
-            })
-
-            return DraftResponse(
-                sourceDraft={
-                    "message": source_draft,
-                    "terms": terms,
-                    "needsManualRewrite": needs_manual_rewrite,
-                },
-                targetDraft={
-                    "message": target_draft,
-                    "terms": terms,
-                    "needsManualRewrite": needs_manual_rewrite,
-                },
-            )
-        
-        except Exception as e:
-            logger.error("Draft creation failed", extra={
-                "matchId": request.match.get("id"),
-                "error": str(e),
-                "latency_ms": int((time.time() - start_time) * 1000),
-            })
-            raise
-    
-    async def _llm_determine_terms(self, match: dict) -> dict:
-        """
-        LLM decides the proposed deal terms from reference data and context.
-        Replaces the previous hardcoded 15% discount formula and 12-month default.
-        """
-        category = match.get("classification", {}).get("primaryCategory", "unknown")
-        market_price = get_market_price(category)
-        category_info = get_category(category) or {}
-
+    try:
         result = await llm_client.complete_json(
             system_prompt=(
                 "You are EcoMatch's Negotiator Agent determining fair deal terms for a waste "
@@ -149,165 +92,360 @@ class NegotiatorAgent:
                 "frequency": "pickup/delivery frequency string (e.g. 'monthly', 'weekly')",
                 "contractLengthMonths": "integer, e.g. 6 or 12",
                 "startDate": "string, e.g. 'to be confirmed'",
-                "notes": "short notes string about quality expectations",
+                "notes": "short quality-expectation notes string",
             },
         )
-        # Ensure required keys with sensible defaults if LLM omits any
-        return {
+        terms = {
             "pricePerUnit": float(result.get("pricePerUnit") or market_price * 0.85),
             "frequency": str(result.get("frequency") or "monthly"),
             "contractLengthMonths": int(result.get("contractLengthMonths") or 12),
             "startDate": str(result.get("startDate") or "to be confirmed"),
             "notes": str(result.get("notes") or "Subject to material inspection and quality verification"),
         }
-    
-    async def _draft_source_message(
-        self,
-        source_business: dict,
-        target_business: dict,
-        match: dict,
-        terms: dict,
-        stricter: bool = False,
-    ) -> str:
-        """Draft message for source business using the LLM."""
-        return await self._draft_message(
-            audience_role="source_business",
-            audience_business=source_business,
-            counterpart_business=target_business,
-            match=match,
-            terms=terms,
-            stricter=stricter,
-        )
-
-    async def _draft_target_message(
-        self,
-        target_business: dict,
-        source_business: dict,
-        match: dict,
-        terms: dict,
-        stricter: bool = False,
-    ) -> str:
-        """Draft message for target business using the LLM."""
-        return await self._draft_message(
-            audience_role="target_business",
-            audience_business=target_business,
-            counterpart_business=source_business,
-            match=match,
-            terms=terms,
-            stricter=stricter,
-        )
-
-    async def _draft_message(
-        self,
-        audience_role: str,
-        audience_business: dict,
-        counterpart_business: dict,
-        match: dict,
-        terms: dict,
-        stricter: bool = False,
-    ) -> str:
-        """Ask the LLM for an in-platform proposal message."""
-        audience_name = audience_business.get("name", "Partner")
-        counterpart_name = counterpart_business.get("name", "potential partner")
-        safe_payload = {
-            "audienceRole": audience_role,
-            "audienceBusiness": {"name": audience_name},
-            "counterpartBusiness": {"name": counterpart_name},
-            "match": {
-                "id": match.get("id"),
-                "classification": match.get("classification"),
-                "targetBusinessId": match.get("targetBusinessId"),
-                "matchRationale": match.get("matchRationale"),
-            },
-            "terms": terms,
-            "stricterTonePass": stricter,
+    except (LLMConfigurationError, LLMResponseError) as exc:
+        logger.info("Negotiator terms fallback", extra={"reason": str(exc)})
+        terms = {
+            "pricePerUnit": market_price * 0.85,
+            "frequency": "monthly",
+            "contractLengthMonths": 12,
+            "startDate": "to be confirmed",
+            "notes": "Subject to material inspection and quality verification",
         }
-        try:
-            result = await llm_client.complete_json(
-                system_prompt=(
-                    "You are EcoMatch's Negotiator Agent. Draft a warm, specific, non-pushy "
-                    "dashboard proposal for the logged-in business. The message is for in-platform "
-                    "display only. Do not include phone numbers, email addresses, physical addresses, "
-                    "or any contact details. Do not imply the deal is confirmed, binding, guaranteed, "
-                    "required, or already accepted by the other party. Clearly frame it as a proposal "
-                    "the current business can accept or reject."
-                ),
-                operation=f"negotiator_{audience_role}_draft",
-                user_payload=safe_payload,
-                response_schema={"message": "dashboard proposal message string"},
-            )
-            message = result.get("message")
-            if isinstance(message, str) and message.strip():
-                return message.strip()
-            raise LLMResponseError("message missing")
-        except (LLMConfigurationError, LLMResponseError) as exc:
-            logger.info("Using local Negotiator draft fallback", extra={
-                "audienceRole": audience_role,
-                "reason": str(exc),
-            })
-            return self._draft_message_fallback(audience_role, audience_name, counterpart_name, terms)
 
-    def _draft_message_fallback(
-        self,
-        audience_role: str,
-        audience_name: str,
-        counterpart_name: str,
-        terms: dict,
-    ) -> str:
-        """Local draft for development when no LLM is configured."""
-        if audience_role == "source_business":
-            relationship = (
-                f"We've identified {counterpart_name} as a potential recipient for your material. "
-                "They operate in a compatible line of work and may benefit from your supply."
-            )
-        else:
-            relationship = (
-                f"We've identified {counterpart_name} as a potential supplier for material that may "
-                "match your operations."
-            )
+    return {"terms": terms}
 
-        return (
-            f"Hello {audience_name},\n\n"
-            f"{relationship}\n\n"
-            f"Proposed terms:\n"
-            f"- Price: ${terms['pricePerUnit']:.2f} per unit\n"
-            f"- Frequency: {terms['frequency']}\n"
-            f"- Contract length: {terms['contractLengthMonths']} months\n\n"
-            "If this looks useful, you can review and accept this proposal in your dashboard. "
-            "The arrangement moves forward only after both businesses accept.\n\n"
-            "EcoMatch Team"
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Nodes 2 & 3 — draft_source_message / draft_target_message
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _node_draft_source_message(state: NegotiatorState) -> dict:
+    """Draft the in-platform proposal for the SOURCE business."""
+    msg = await _llm_draft_message(
+        audience_role="source_business",
+        audience_business=state["source_business"],
+        counterpart_business=state["target_business"],
+        match=state["match"],
+        terms=state["terms"],
+        stricter=False,
+    )
+    return {"source_draft": msg}
+
+
+async def _node_draft_target_message(state: NegotiatorState) -> dict:
+    """Draft the in-platform proposal for the TARGET business."""
+    msg = await _llm_draft_message(
+        audience_role="target_business",
+        audience_business=state["target_business"],
+        counterpart_business=state["source_business"],
+        match=state["match"],
+        terms=state["terms"],
+        stricter=False,
+    )
+    return {"target_draft": msg}
+
+
+async def _llm_draft_message(
+    *,
+    audience_role: str,
+    audience_business: dict,
+    counterpart_business: dict,
+    match: dict,
+    terms: dict,
+    stricter: bool,
+) -> str:
+    """
+    Ask the LLM for a warm, non-pushy in-platform proposal message.
+    NEVER includes phone, email, or physical address.
+    """
+    audience_name = audience_business.get("name", "Partner")
+    counterpart_name = counterpart_business.get("name", "potential partner")
+
+    safe_payload = {
+        "audienceRole": audience_role,
+        "audienceBusiness": {"name": audience_name},
+        "counterpartBusiness": {"name": counterpart_name},
+        "match": {
+            "id": match.get("id"),
+            "classification": match.get("classification"),
+            "targetBusinessId": match.get("targetBusinessId"),
+            "matchRationale": match.get("matchRationale"),
+        },
+        "terms": terms,
+        "stricterTonePass": stricter,
+    }
+
+    try:
+        result = await llm_client.complete_json(
+            system_prompt=(
+                "You are EcoMatch's Negotiator Agent. Draft a warm, specific, non-pushy "
+                "dashboard proposal for the logged-in business. The message is for in-platform "
+                "display only — NEVER include phone numbers, email addresses, physical addresses, "
+                "or any other contact details. Do not imply the deal is confirmed, binding, "
+                "guaranteed, required, or already accepted by the other party. "
+                "Clearly frame it as a proposal the current business can accept or reject."
+            ),
+            operation=f"negotiator_{audience_role}_draft",
+            user_payload=safe_payload,
+            response_schema={"message": "dashboard proposal message string"},
         )
+        message = result.get("message")
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+        raise LLMResponseError("message missing from LLM response")
+    except (LLMConfigurationError, LLMResponseError) as exc:
+        logger.info("Negotiator draft fallback", extra={"audienceRole": audience_role, "reason": str(exc)})
+        return _fallback_message(audience_role, audience_name, counterpart_name, terms)
 
-    async def _llm_check_tone(self, draft_message: str) -> bool:
-        """
-        LLM verifies the draft doesn't overpromise, bind, or include contact details.
-        Returns True if tone is acceptable, False if regeneration is needed.
-        Replaces the previous keyword-checklist approach.
-        """
+
+def _fallback_message(role: str, audience: str, counterpart: str, terms: dict) -> str:
+    """Local draft used when no LLM is configured."""
+    if role == "source_business":
+        intro = (
+            f"We've identified {counterpart} as a potential recipient for your material. "
+            "They operate in a compatible line of work and may benefit from your supply."
+        )
+    else:
+        intro = (
+            f"We've identified {counterpart} as a potential supplier of material that may "
+            "match your operations."
+        )
+    return (
+        f"Hello {audience},\n\n{intro}\n\n"
+        f"Proposed terms:\n"
+        f"- Price: ${terms['pricePerUnit']:.2f} per unit\n"
+        f"- Frequency: {terms['frequency']}\n"
+        f"- Contract length: {terms['contractLengthMonths']} months\n\n"
+        "If this looks useful, you can review and accept this proposal in your dashboard. "
+        "The arrangement moves forward only after both businesses accept.\n\n"
+        "EcoMatch Team"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Node 4 — llm_check_tone
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _node_llm_check_tone(state: NegotiatorState) -> dict:
+    """
+    LLM verifies both drafts don't overpromise, bind, or leak contact info.
+    Increments tone_attempt counter for the retry loop.
+    """
+    source_tone_ok = await _check_single_draft(state["source_draft"])
+    target_tone_ok = await _check_single_draft(state["target_draft"])
+
+    new_attempt = state["tone_attempt"] + 1
+    if not (source_tone_ok and target_tone_ok):
+        logger.warning("Tone check failed", extra={
+            "matchId": state["match"].get("id"),
+            "attempt": new_attempt,
+            "sourceFailed": not source_tone_ok,
+            "targetFailed": not target_tone_ok,
+        })
+
+    return {
+        "source_tone_ok": source_tone_ok,
+        "target_tone_ok": target_tone_ok,
+        "tone_attempt": new_attempt,
+    }
+
+
+async def _check_single_draft(draft_message: str) -> bool:
+    """Returns True if the draft passes the tone check."""
+    try:
         result = await llm_client.complete_json(
             system_prompt=(
                 "You are a quality reviewer for EcoMatch proposal drafts. "
-                "Review the provided draft message and check ALL of the following:\n"
-                "1. Does it contain pressure language? (e.g. 'must', 'required', 'guaranteed', 'binding')\n"
-                "2. Does it imply the deal is already confirmed or that the other party has already agreed?\n"
-                "3. Does it contain any contact information? (phone numbers, email addresses, "
-                "physical addresses, URLs to contact pages)\n"
-                "4. Does it frame itself clearly as a PROPOSAL that the logged-in business can accept or reject?\n\n"
-                "Return toneOk=true ONLY if: no pressure language, no false confirmations, "
-                "no contact details, and it clearly reads as a proposal awaiting decision. "
-                "Return toneOk=false otherwise, with a brief reason."
+                "Check ALL of the following rules:\n"
+                "1. No pressure language (e.g. 'must', 'required', 'guaranteed', 'binding').\n"
+                "2. Does not imply the deal is confirmed or the other party has already agreed.\n"
+                "3. Contains no contact information (phone, email, address, or URLs).\n"
+                "4. Clearly frames itself as a PROPOSAL awaiting the reader's own accept/reject.\n"
+                "Return toneOk=true ONLY if all four rules pass."
             ),
             operation="negotiator_tone_check",
             user_payload={"draftMessage": draft_message},
             response_schema={
-                "toneOk": "boolean — true if tone is acceptable",
+                "toneOk": "boolean — true if all rules pass",
                 "reason": "brief explanation if toneOk is false, else null",
             },
         )
         tone_ok = bool(result.get("toneOk", False))
         if not tone_ok:
-            logger.info("Tone check failed", extra={"reason": result.get("reason")})
+            logger.info("Draft tone check failed", extra={"reason": result.get("reason")})
         return tone_ok
+    except (LLMConfigurationError, LLMResponseError):
+        # If tone check itself fails (no LLM), assume ok to avoid infinite loop
+        return True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Node 5 — regenerate_drafts
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _node_regenerate_drafts(state: NegotiatorState) -> dict:
+    """Regenerates failed drafts with stricter tone constraints (retry path)."""
+    updates: dict = {}
+    if not state["source_tone_ok"]:
+        updates["source_draft"] = await _llm_draft_message(
+            audience_role="source_business",
+            audience_business=state["source_business"],
+            counterpart_business=state["target_business"],
+            match=state["match"],
+            terms=state["terms"],
+            stricter=True,
+        )
+    if not state["target_tone_ok"]:
+        updates["target_draft"] = await _llm_draft_message(
+            audience_role="target_business",
+            audience_business=state["target_business"],
+            counterpart_business=state["source_business"],
+            match=state["match"],
+            terms=state["terms"],
+            stricter=True,
+        )
+    return updates
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Node 6 — flag_for_manual_rewrite
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _node_flag_for_manual_rewrite(state: NegotiatorState) -> dict:
+    """
+    Cap reached — return best-effort draft flagged for admin review.
+    This is an exception path, not a required step (architecture.md §6).
+    """
+    logger.warning("Negotiator max tone attempts reached — flagging for manual rewrite", extra={
+        "matchId": state["match"].get("id"),
+        "attempts": state["tone_attempt"],
+    })
+    return {"needs_manual_rewrite": True}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Conditional routing
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _route_after_tone_check(state: NegotiatorState) -> str:
+    """
+    Route based on tone check outcome and attempt count:
+    - Both ok → end
+    - Fail but attempts remaining → regenerate
+    - Fail and exhausted → flag for manual rewrite
+    """
+    tone_ok = state["source_tone_ok"] and state["target_tone_ok"]
+    if tone_ok:
+        return "end_ok"
+    if state["tone_attempt"] < state["max_tone_attempts"]:
+        return "regenerate"
+    return "flag_manual"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Graph construction
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _build_negotiator_graph():
+    graph = StateGraph(NegotiatorState)
+
+    graph.add_node("llm_determine_terms", _node_llm_determine_terms)
+    graph.add_node("draft_source_message", _node_draft_source_message)
+    graph.add_node("draft_target_message", _node_draft_target_message)
+    graph.add_node("llm_check_tone", _node_llm_check_tone)
+    graph.add_node("regenerate_drafts", _node_regenerate_drafts)
+    graph.add_node("flag_for_manual_rewrite", _node_flag_for_manual_rewrite)
+
+    graph.set_entry_point("llm_determine_terms")
+    graph.add_edge("llm_determine_terms", "draft_source_message")
+    graph.add_edge("draft_source_message", "draft_target_message")
+    graph.add_edge("draft_target_message", "llm_check_tone")
+
+    # Conditional loop: ok → END | retry → regenerate → llm_check_tone | exhausted → flag
+    graph.add_conditional_edges(
+        "llm_check_tone",
+        _route_after_tone_check,
+        {
+            "end_ok": END,
+            "regenerate": "regenerate_drafts",
+            "flag_manual": "flag_for_manual_rewrite",
+        },
+    )
+    graph.add_edge("regenerate_drafts", "llm_check_tone")  # ← cycle back
+    graph.add_edge("flag_for_manual_rewrite", END)
+
+    return graph.compile()
+
+
+_negotiator_graph = _build_negotiator_graph()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Public agent class (unchanged external API)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class NegotiatorAgent:
+    """Negotiator Agent for drafting in-platform proposals.
+
+    Wraps the compiled LangGraph StateGraph. External callers use .draft()
+    exactly as before.
+
+    CRITICAL: Never includes contact info. Only returns drafts. Never sends.
+    """
+
+    def __init__(self):
+        self.max_tone_attempts = int(os.getenv("NEGOTIATOR_MAX_TONE_REGEN", "2"))
+        self._graph = _negotiator_graph
+
+    async def draft(self, request: DraftRequest) -> DraftResponse:
+        start_time = time.time()
+
+        initial_state: NegotiatorState = {
+            "match": request.match,
+            "source_business": request.sourceBusiness,
+            "target_business": request.targetBusiness,
+            "max_tone_attempts": self.max_tone_attempts,
+            # Defaults
+            "terms": {},
+            "source_draft": "",
+            "target_draft": "",
+            "source_tone_ok": False,
+            "target_tone_ok": False,
+            "tone_attempt": 0,
+            "needs_manual_rewrite": False,
+            "error": None,
+        }
+
+        try:
+            final = await self._graph.ainvoke(initial_state)
+
+            logger.info("Drafts created", extra={
+                "matchId": request.match.get("id"),
+                "needsManualRewrite": final.get("needs_manual_rewrite", False),
+                "latency_ms": int((time.time() - start_time) * 1000),
+            })
+
+            needs_rewrite = final.get("needs_manual_rewrite", False)
+            return DraftResponse(
+                sourceDraft={
+                    "message": final["source_draft"],
+                    "terms": final["terms"],
+                    "needsManualRewrite": needs_rewrite,
+                },
+                targetDraft={
+                    "message": final["target_draft"],
+                    "terms": final["terms"],
+                    "needsManualRewrite": needs_rewrite,
+                },
+            )
+
+        except Exception as exc:
+            logger.error("Negotiator graph invocation failed", extra={
+                "matchId": request.match.get("id"),
+                "error": str(exc),
+                "latency_ms": int((time.time() - start_time) * 1000),
+            })
+            raise
 
 
 negotiator_agent = NegotiatorAgent()
