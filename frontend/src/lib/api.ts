@@ -66,7 +66,7 @@ export const api = {
 
   // Verification
   submitEvidence: (matchId: string, body: { evidenceType: string; evidenceUrl?: string }) => request(`/verification/${matchId}/submit`, { method: 'POST', body: JSON.stringify(body) }),
-  confirmVerification: (matchId: string, body: { businessId: string }) => request(`/verification/${matchId}/confirm`, { method: 'POST', body: JSON.stringify(body) }),
+  confirmVerification: (matchId: string) => request(`/verification/${matchId}/confirm`, { method: 'POST' }),
   getVerificationRecords: (matchId: string) => request(`/verification/${matchId}`),
 
   // Uploads

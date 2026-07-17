@@ -44,17 +44,47 @@ export class OutreachRepository {
       .where(eq(schema.outreachDrafts.matchId, matchId));
   }
 
+  /**
+   * Returns true if the given businessId belongs to the stub email user.
+   * Used to auto-accept on behalf of stub Phase-1 target businesses.
+   */
+  async isStubBusiness(businessId: string, stubEmail: string): Promise<boolean> {
+    const db = getDb();
+    const result = await db
+      .select({ businessId: schema.businesses.id })
+      .from(schema.businesses)
+      .innerJoin(schema.users, eq(schema.businesses.userId, schema.users.id))
+      .where(and(
+        eq(schema.businesses.id, businessId),
+        eq(schema.users.email, stubEmail)
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getUserByEmail(email: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+    return result[0] || null;
+  }
+
   async acceptDraftAndCheckDual(
     outreachDraftId: string,
     userId: string,
     matchId: string,
     acceptEvent: typeof schema.dealEvents.$inferInsert,
     shouldUpdateMatch: boolean,
-    matchBothAcceptedEvent?: typeof schema.dealEvents.$inferInsert
+    matchBothAcceptedEvent?: typeof schema.dealEvents.$inferInsert,
+    stubAutoAcceptDraftId?: string | null,
+    stubUserId?: string | null,
   ) {
     const db = getDb();
     await db.transaction(async (tx) => {
-      // 1. Update draft
+      // 1. Update the current draft to accepted
       await tx
         .update(schema.outreachDrafts)
         .set({
@@ -64,10 +94,31 @@ export class OutreachRepository {
         })
         .where(eq(schema.outreachDrafts.id, outreachDraftId));
 
-      // 2. Insert accept event
+      // 2. Insert the accept event
       await tx.insert(schema.dealEvents).values(acceptEvent);
 
-      // 3. If both accepted, update match, schedule logistics, and insert second event
+      // 3. Auto-accept the stub target's draft if needed
+      if (stubAutoAcceptDraftId && stubUserId) {
+        await tx
+          .update(schema.outreachDrafts)
+          .set({
+            status: 'accepted',
+            respondedByUserId: stubUserId,
+            respondedAt: new Date(),
+          })
+          .where(eq(schema.outreachDrafts.id, stubAutoAcceptDraftId));
+
+        // Insert a deal event for the stub auto-accept
+        await tx.insert(schema.dealEvents).values({
+          id: uuidv4(),
+          matchId,
+          eventType: 'target_accepted',
+          actorId: stubUserId,
+          description: 'target business accepted the proposal (auto-accepted for stub partner)',
+        });
+      }
+
+      // 4. If both sides are now accepted, advance match + schedule logistics
       if (shouldUpdateMatch) {
         // Find or create default hauler
         const existingHaulers = await tx
@@ -92,30 +143,28 @@ export class OutreachRepository {
         // Create logistics booking
         await tx.insert(schema.logisticsBookings).values({
           id: uuidv4(),
-          matchId: matchId,
-          haulerId: haulerId,
+          matchId,
+          haulerId,
           pickupDate: new Date().toISOString().split('T')[0],
           status: 'scheduled',
         });
 
-        // Update match status to logistics_scheduled
+        // Update match status to both_accepted
         await tx
           .update(schema.matches)
-          .set({ status: 'logistics_scheduled' })
+          .set({ status: 'both_accepted' })
           .where(eq(schema.matches.id, matchId));
 
         if (matchBothAcceptedEvent) {
-          // Adjust description to reflect hauler scheduling
           const updatedEvent = {
             ...matchBothAcceptedEvent,
-            description: 'Both businesses have accepted the proposal. Hauler EcoMatch Logistics has been scheduled.'
+            description: 'Both businesses have accepted the proposal. Hauler EcoMatch Logistics has been scheduled.',
           };
           await tx.insert(schema.dealEvents).values(updatedEvent);
         }
       }
     });
   }
-
 
   async rejectDraftAndMatch(
     outreachDraftId: string,
@@ -125,7 +174,6 @@ export class OutreachRepository {
   ) {
     const db = getDb();
     await db.transaction(async (tx) => {
-      // 1. Update draft
       await tx
         .update(schema.outreachDrafts)
         .set({
@@ -135,13 +183,11 @@ export class OutreachRepository {
         })
         .where(eq(schema.outreachDrafts.id, outreachDraftId));
 
-      // 2. Update match status
       await tx
         .update(schema.matches)
         .set({ status: 'rejected' })
         .where(eq(schema.matches.id, matchId));
 
-      // 3. Insert deal event
       await tx.insert(schema.dealEvents).values(rejectEvent);
     });
   }

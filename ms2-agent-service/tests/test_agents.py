@@ -68,7 +68,7 @@ async def mock_complete_json(self, *, system_prompt: str, user_payload: dict, re
         }
     elif operation == "verification_sanity_check":
         return {
-            "plausible": true,
+            "plausible": True,
             "reason": None
         }
     return {}

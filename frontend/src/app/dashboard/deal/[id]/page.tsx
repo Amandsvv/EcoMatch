@@ -102,8 +102,8 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
     try {
       // 1. Submit evidence type and url
       await api.submitEvidence(match.id, { evidenceType, evidenceUrl });
-      // 2. Confirm evidence for this business
-      await api.confirmVerification(match.id, { businessId: user?.businessId || '' });
+      // 2. Confirm verification — businessId is resolved server-side from JWT
+      await api.confirmVerification(match.id);
       
       // Reload deal details
       await fetchDealData();

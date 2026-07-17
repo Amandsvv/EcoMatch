@@ -14,6 +14,9 @@ export class AppError extends Error {
   ) {
     super(message);
     this.name = 'AppError';
+    if (statusCode < 500) {
+      delete this.stack;
+    }
   }
 
   toResponse(): ApiErrorResponse {

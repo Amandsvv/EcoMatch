@@ -127,15 +127,18 @@ export class AuthService {
 
     const user = await this.repository.getUserByEmail(email);
     if (!user) {
+      logger.warn('Login failed: user not found', { email });
       throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid email or password');
     }
 
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {
+      logger.warn('Login failed: password mismatch', { email, userId: user.id });
       throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid email or password');
     }
 
     if (!user.emailVerified) {
+      logger.warn('Login failed: email not verified', { email, userId: user.id });
       throw new AppError(ErrorCodes.UNAUTHORIZED, 401, 'Please verify your email address before logging in.');
     }
 
@@ -146,14 +149,16 @@ export class AuthService {
     );
 
     let businessId = null;
+    let businessName = null;
     if (user.role === 'business') {
       const business = await this.repository.getBusinessByUserId(user.id);
       if (business) {
         businessId = business.id;
+        businessName = business.name;
       }
     }
 
-    return { token, userId: user.id, businessId, role: user.role };
+    return { token, userId: user.id, email: user.email, businessId, businessName, role: user.role };
   }
 
   async verifyEmail(token: string) {
