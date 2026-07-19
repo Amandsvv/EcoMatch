@@ -5,15 +5,16 @@ import { SubmissionsController } from './submissions.controller';
 import { authMiddleware } from '../../lib/middleware';
 
 const router = Router();
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 const repository = new SubmissionsRepository();
 const service = new SubmissionsService(repository);
 const controller = new SubmissionsController(service);
 
-router.post('/', controller.createSubmission);
-router.get('/', controller.getSubmissionsForUser);
-router.get('/:submissionId', controller.getSubmissionDetails);
-router.delete('/:submissionId', controller.deleteSubmission);
+router.post('/', authMiddleware, controller.createSubmission);
+router.get('/', authMiddleware, controller.getSubmissionsForUser);
+router.get('/:submissionId', authMiddleware, controller.getSubmissionDetails);
+router.delete('/:submissionId', authMiddleware, controller.deleteSubmission);
+router.post('/:submissionId/match', authMiddleware, controller.findMatch);
 
 export default router;

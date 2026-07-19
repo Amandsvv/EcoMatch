@@ -15,5 +15,6 @@ router.get('/business/:businessId', controller.getMatchesForBusiness);
 router.get('/submission/:submissionId', controller.getMatchDetailsBySubmissionId);
 router.get('/:matchId/events', controller.getDealEventsForMatch);
 router.get('/:matchId', controller.getMatchDetails);
+router.post('/:matchId/draft', controller.draftProposal);
 
 export default router;

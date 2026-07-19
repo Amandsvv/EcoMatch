@@ -52,4 +52,15 @@ export class MatchesController {
       next(error);
     }
   };
+
+  draftProposal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { matchId } = req.params;
+      const result = await this.service.draftProposal(matchId, req.userId!);
+      logger.info('Manual draft proposal triggered', { traceId: req.traceId, matchId, userId: req.userId });
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -78,9 +78,7 @@ export class OutreachRepository {
     matchId: string,
     acceptEvent: typeof schema.dealEvents.$inferInsert,
     shouldUpdateMatch: boolean,
-    matchBothAcceptedEvent?: typeof schema.dealEvents.$inferInsert,
-    stubAutoAcceptDraftId?: string | null,
-    stubUserId?: string | null,
+    matchBothAcceptedEvent?: typeof schema.dealEvents.$inferInsert
   ) {
     const db = getDb();
     await db.transaction(async (tx) => {
@@ -96,27 +94,6 @@ export class OutreachRepository {
 
       // 2. Insert the accept event
       await tx.insert(schema.dealEvents).values(acceptEvent);
-
-      // 3. Auto-accept the stub target's draft if needed
-      if (stubAutoAcceptDraftId && stubUserId) {
-        await tx
-          .update(schema.outreachDrafts)
-          .set({
-            status: 'accepted',
-            respondedByUserId: stubUserId,
-            respondedAt: new Date(),
-          })
-          .where(eq(schema.outreachDrafts.id, stubAutoAcceptDraftId));
-
-        // Insert a deal event for the stub auto-accept
-        await tx.insert(schema.dealEvents).values({
-          id: uuidv4(),
-          matchId,
-          eventType: 'target_accepted',
-          actorId: stubUserId,
-          description: 'target business accepted the proposal (auto-accepted for stub partner)',
-        });
-      }
 
       // 4. If both sides are now accepted, advance match + schedule logistics
       if (shouldUpdateMatch) {

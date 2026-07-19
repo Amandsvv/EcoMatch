@@ -1,4 +1,4 @@
-import { eq, and, or, inArray, desc } from 'drizzle-orm';
+import { eq, and, or, inArray, desc, not } from 'drizzle-orm';
 import { getDb, schema } from '../../db';
 
 export class SubmissionsRepository {
@@ -77,7 +77,7 @@ export class SubmissionsRepository {
       let status = r.submission.status;
       if (r.match) {
         if (r.match.status === 'proposed') {
-          status = 'match_proposed';
+          status = r.submission.status === 'proposal_drafted' ? 'proposal_drafted' : 'match_proposed';
         } else if (['both_accepted', 'logistics_scheduled', 'completed'].includes(r.match.status)) {
           status = 'both_accepted';
         } else if (r.match.status === 'verified') {
@@ -122,7 +122,7 @@ export class SubmissionsRepository {
       let status = r.submission.status;
       if (r.match) {
         if (r.match.status === 'proposed') {
-          status = 'match_proposed';
+          status = r.submission.status === 'proposal_drafted' ? 'proposal_drafted' : 'match_proposed';
         } else if (['both_accepted', 'logistics_scheduled', 'completed'].includes(r.match.status)) {
           status = 'both_accepted';
         } else if (r.match.status === 'verified') {
@@ -193,6 +193,35 @@ export class SubmissionsRepository {
     });
   }
 
+  async getClassificationBySubmissionId(submissionId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.materialClassifications)
+      .where(eq(schema.materialClassifications.submissionId, submissionId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async updateSubmissionStatus(submissionId: string, status: string) {
+    const db = getDb();
+    await db
+      .update(schema.submissions)
+      .set({ status })
+      .where(eq(schema.submissions.id, submissionId));
+  }
+
+  async saveMatchAndLogEvent(
+    match: typeof schema.matches.$inferInsert,
+    dealEvent: typeof schema.dealEvents.$inferInsert
+  ) {
+    const db = getDb();
+    await db.transaction(async (tx) => {
+      await tx.insert(schema.matches).values(match);
+      await tx.insert(schema.dealEvents).values(dealEvent);
+    });
+  }
+
   async deleteSubmission(submissionId: string, businessId: string) {
     const db = getDb();
     // Verify ownership before delete
@@ -207,5 +236,13 @@ export class SubmissionsRepository {
     if (!submission[0]) return null;
     await db.delete(schema.submissions).where(eq(schema.submissions.id, submissionId));
     return true;
+  }
+
+  async getAllBusinessesExcept(excludeBusinessId: string) {
+    const db = getDb();
+    return db
+      .select()
+      .from(schema.businesses)
+      .where(not(eq(schema.businesses.id, excludeBusinessId)));
   }
 }

@@ -96,11 +96,11 @@ export default function CertificatePrintPage({ params }: { params: Promise<{ id:
               <div className="grid grid-cols-2 gap-4 text-left">
                 <div>
                   <span className="text-[10px] text-slate-400 font-bold block uppercase">Resource Generator</span>
-                  <span className="text-sm font-extrabold text-slate-800">Coderio Cafe</span>
+                  <span className="text-sm font-extrabold text-slate-800">{match.sourceBusinessName || 'Source Business'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-bold block uppercase">Resource Consumer</span>
-                  <span className="text-sm font-extrabold text-slate-800">Local Compost Operations</span>
+                  <span className="text-sm font-extrabold text-slate-800">{match.targetBusinessName || 'Target Business'}</span>
                 </div>
               </div>
             </div>

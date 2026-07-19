@@ -13,7 +13,14 @@ import {
   CheckCircle, 
   ShieldAlert, 
   Search, 
-  DollarSign
+  DollarSign,
+  Sparkles,
+  MapPin,
+  ShieldCheck,
+  MessageSquare,
+  Truck,
+  Award,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function SubmitSurplus() {
@@ -21,6 +28,7 @@ export default function SubmitSurplus() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const followupId = searchParams.get('followup');
+  const existingId = searchParams.get('id');
 
   // Form fields
   const [description, setDescription] = useState('');
@@ -55,14 +63,16 @@ export default function SubmitSurplus() {
   const [error, setError] = useState<string | null>(null);
   
   // Pipeline response states
-  const [pipelineStatus, setPipelineStatus] = useState<'idle' | 'classifying' | 'matching' | 'complete'>('idle');
+  const [pipelineStatus, setPipelineStatus] = useState<'idle' | 'classifying' | 'scout_done' | 'matching' | 'alchemist_done' | 'drafting' | 'complete'>('idle');
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
     if (followupId) {
       loadFollowupData(followupId);
+    } else if (existingId) {
+      loadExistingSubmission(existingId);
     }
-  }, [followupId]);
+  }, [followupId, existingId]);
 
   const loadFollowupData = async (id: string) => {
     try {
@@ -73,6 +83,43 @@ export default function SubmitSurplus() {
       setFrequency(data.disposalFrequency);
     } catch (err: any) {
       setError('Failed to load previous submission details');
+    }
+  };
+
+  const loadExistingSubmission = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getSubmission(id);
+      setResult(data);
+      if (['hazard_detected', 'needs_followup', 'low_confidence'].includes(data.status)) {
+        setPipelineStatus('complete');
+      } else if (data.status === 'submitted') {
+        setPipelineStatus('scout_done');
+      } else if (data.status === 'match_proposed') {
+        const matchData = await api.getMatchBySubmission(id);
+        setResult({
+          submissionId: data.id,
+          classification: data.classification,
+          match: matchData.match,
+          status: 'match_proposed'
+        });
+        setPipelineStatus('alchemist_done');
+      } else if (data.status === 'proposal_drafted') {
+        const matchData = await api.getMatchBySubmission(id);
+        setResult({
+          submissionId: data.id,
+          classification: data.classification,
+          match: matchData.match,
+          drafts: matchData.outreachDrafts,
+          status: 'proposal_drafted'
+        });
+        setPipelineStatus('complete');
+      }
+    } catch (err: any) {
+      setError('Failed to load submission details');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,10 +145,61 @@ export default function SubmitSurplus() {
       });
 
       setResult(response);
-      setPipelineStatus('complete');
+      if (['hazard_detected', 'needs_followup', 'low_confidence'].includes(response.status)) {
+        setPipelineStatus('complete');
+      } else {
+        setPipelineStatus('scout_done');
+      }
     } catch (err: any) {
       setError(err.message || 'Submission failed. Please check inputs.');
       setPipelineStatus('idle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFindMatch = async () => {
+    if (!result?.submissionId) return;
+    setError(null);
+    setLoading(true);
+    setPipelineStatus('matching');
+    try {
+      const response = await api.findMatch(result.submissionId);
+      if (response.status === 'no_match_found') {
+        setResult((prev: any) => ({ ...prev, status: 'no_match_found' }));
+        setPipelineStatus('complete');
+      } else {
+        setResult((prev: any) => ({ 
+          ...prev, 
+          status: 'match_proposed', 
+          match: response.match 
+        }));
+        setPipelineStatus('alchemist_done');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Matching failed. Please try again.');
+      setPipelineStatus('scout_done');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDraftMessage = async () => {
+    if (!result?.match?.id) return;
+    setError(null);
+    setLoading(true);
+    setPipelineStatus('drafting');
+    try {
+      const response = await api.draftMessage(result.match.id);
+      setResult((prev: any) => ({
+        ...prev,
+        status: 'proposal_drafted',
+        drafts: response.outreachDrafts
+      }));
+      setPipelineStatus('complete');
+    } catch (err: any) {
+      setError(err.message || 'Drafting message failed. Please try again.');
+      setPipelineStatus('alchemist_done');
     } finally {
       setLoading(false);
     }
@@ -269,17 +367,210 @@ export default function SubmitSurplus() {
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-white">Analyzing Material Composition</h3>
             <p className="text-sm text-slate-400 max-w-sm mx-auto">
-              The Scout Agent is classifying your material, assessing safety checks, and scanning for local recycling candidates...
+              The Scout Agent is classifying your material, assessing safety checks, and estimating composition...
             </p>
           </div>
         </div>
       )}
 
-      {/* Result Display Views */}
+      {pipelineStatus === 'matching' && (
+        <div className="bg-slate-900/40 border border-slate-900 p-12 rounded-3xl backdrop-blur-sm text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
+              <Sparkles className="h-16 w-16 text-emerald-400 animate-spin relative z-10" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-white">Searching for Symbiosis Match</h3>
+            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+              The Alchemist Agent is searching the database for compatible reuse businesses, verifying chemical constraints, and ranking candidates...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {pipelineStatus === 'drafting' && (
+        <div className="bg-slate-900/40 border border-slate-900 p-12 rounded-3xl backdrop-blur-sm text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-xl animate-pulse"></div>
+              <MessageSquare className="h-16 w-16 text-emerald-400 animate-bounce relative z-10" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-white">Drafting Proposal Agreement</h3>
+            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+              The Negotiator Agent is calculating mutually beneficial pricing, contract lengths, and drafting the agreement messages...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Scout Result Stage */}
+      {pipelineStatus === 'scout_done' && result && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/40 border border-slate-900 p-8 rounded-3xl backdrop-blur-sm space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                  Scout Analysis Result
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">Material classification and safety assessment complete</p>
+              </div>
+              <span className="bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium">
+                Passes Safety Check
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-900">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Primary Category</span>
+                <span className="text-sm font-semibold text-white mt-1 block capitalize">
+                  {result.classification.primaryCategory.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-900">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Subtype / Material</span>
+                <span className="text-sm font-semibold text-white mt-1 block capitalize">
+                  {result.classification.subtype || 'N/A'}
+                </span>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 md:col-span-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Estimated Composition</span>
+                <div className="mt-2 text-xs text-slate-300 space-y-1">
+                  {result.classification.estimatedComposition ? (
+                    Object.entries(
+                      typeof result.classification.estimatedComposition === 'string'
+                        ? JSON.parse(result.classification.estimatedComposition)
+                        : result.classification.estimatedComposition
+                    ).map(([key, val]: any) => (
+                      <div key={key} className="flex justify-between border-b border-slate-900 pb-1 last:border-0 last:pb-0">
+                        <span className="text-slate-500 capitalize">{key.replace('_', ' ')}</span>
+                        <span className="font-semibold text-slate-300">{val}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-slate-500">No composition details estimated</span>
+                  )}
+                </div>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 md:col-span-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Analysis Confidence</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-emerald-500 h-full rounded-full transition-all" 
+                      style={{ width: `${result.classification.confidence * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-emerald-400">
+                    {(result.classification.confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleFindMatch}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 group font-bold"
+            >
+              <Search className="h-4 w-4" />
+              Find Symbiosis Match (Alchemist Agent)
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Alchemist Result Stage */}
+      {pipelineStatus === 'alchemist_done' && result && (
+        <div className="space-y-6">
+          {/* Scout result summary (minimized) */}
+          <div className="bg-slate-950 border border-slate-900 p-4 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              <div>
+                <span className="text-xs font-semibold text-white block">Scout Assessment Complete</span>
+                <span className="text-[10px] text-slate-400">
+                  {result.classification.primaryCategory.replace('_', ' ')} • {result.classification.subtype}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-400">{(result.classification.confidence * 100).toFixed(0)}% Conf.</span>
+          </div>
+
+          <div className="bg-slate-900/40 border border-slate-900 p-8 rounded-3xl backdrop-blur-sm space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-emerald-400" />
+                  Alchemist Match Found
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">Optimal compatible business pairing nearby</p>
+              </div>
+              <span className="bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium">
+                {(result.match.matchConfidence * 100).toFixed(0)}% Match
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-900">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Target Partner Type</span>
+                  <span className="text-sm font-semibold text-white mt-1 block capitalize">
+                    {result.match.targetBusinessId ? 'Compatible Local Operation' : 'N/A'}
+                  </span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-900">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Proximity Distance</span>
+                  <span className="text-sm font-semibold text-white mt-1 block flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-emerald-400" />
+                    {result.match.distanceKm.toFixed(1)} km away
+                  </span>
+                </div>
+                {result.match.estimatedSourceSavings && (
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 md:col-span-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Estimated Economic Savings</span>
+                    <span className="text-lg font-bold text-emerald-400 mt-1 block flex items-center gap-0.5">
+                      <DollarSign className="h-5 w-5" />
+                      {result.match.estimatedSourceSavings.toLocaleString()} / year saved
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-950 p-5 rounded-xl border border-slate-900 space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Match Rationale</span>
+                <p className="text-xs text-slate-400 leading-relaxed italic">
+                  "{result.match.matchRationale}"
+                </p>
+              </div>
+
+              <div className="bg-amber-500/5 p-3 rounded-lg border border-amber-500/10 text-[10px] text-amber-400/80 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>Contact details (phone, email, address) are completely hidden for privacy until both sides accept the terms.</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleDraftMessage}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 group font-bold"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Draft Proposal Agreement (Negotiator Agent)
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Result Views (Negotiator Complete, Hazards, Followup, No Match) */}
       {pipelineStatus === 'complete' && result && (
         <div className="space-y-6">
-          {/* 1. Success Match Proposed */}
-          {result.status === 'match_proposed' && (
+          {/* 1. Proposal Drafted Success View */}
+          {result.status === 'proposal_drafted' && (
             <div className="bg-slate-900/40 border border-slate-900 p-8 rounded-3xl backdrop-blur-sm space-y-6 text-center">
               <div className="flex justify-center">
                 <div className="bg-emerald-500/10 p-4 rounded-full border border-emerald-500/20">
@@ -288,38 +579,33 @@ export default function SubmitSurplus() {
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">Symbiosis Match Found!</h3>
+                <h3 className="text-xl font-bold text-white">Proposal Agreement Ready!</h3>
                 <p className="text-sm text-slate-400 max-w-sm mx-auto">
-                  Alchemist Agent matched your material with a nearby buyer. A draft agreement has been generated.
+                  Negotiator Agent drafted a friendly proposal including surplus details. The agreement has been sent to the partner's dashboard.
                 </p>
               </div>
 
               <div className="bg-slate-950 p-6 rounded-2xl border border-slate-900 text-left space-y-4">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">CLASSIFIED CATEGORY</span>
-                  <span className="text-sm font-semibold text-white mt-1 block">
-                    {result.classification.primaryCategory.replace('_', ' ')}
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Deal Status</span>
+                  <span className="text-sm font-semibold text-emerald-400 mt-1 block flex items-center gap-1.5 font-bold">
+                    <ShieldCheck className="h-4 w-4" />
+                    Awaiting Business Acceptance
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">MATCH CONFIDENCE</span>
-                  <span className="text-sm font-semibold text-emerald-400 mt-1 block">
-                    {(result.match.matchConfidence * 100).toFixed(0)}% (Verified Grounded)
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">COMPATIBILITY RATIONALE</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Privacy Lock</span>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    {result.match.matchRationale}
+                    Contact details will be shared automatically once both parties click "Accept".
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={() => router.push(`/dashboard/match/${result.submissionId}`)}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center group"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center group font-bold"
               >
-                Review Proposal Terms
+                Review Proposal Terms & Accept
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </button>
             </div>

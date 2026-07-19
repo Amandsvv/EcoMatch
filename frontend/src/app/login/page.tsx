@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Recycle, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Recycle, ArrowRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
@@ -11,6 +11,34 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const verified = params.get('verified');
+      const urlToken = params.get('token');
+      const urlUser = params.get('user');
+
+      if (verified === 'true') {
+        if (urlToken && urlUser) {
+          setSuccessMessage('Email verified successfully! Logging you in...');
+          setTimeout(() => {
+            localStorage.setItem('ecomatch_token', urlToken);
+            localStorage.setItem('ecomatch_user', urlUser);
+            window.location.href = '/dashboard';
+          }, 1500);
+        } else {
+          setSuccessMessage('Email verified successfully! You can now log in.');
+        }
+      }
+      
+      const errorParam = params.get('error');
+      if (errorParam) {
+        setError(errorParam);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +48,7 @@ export default function Login() {
     }
 
     setError(null);
+    setSuccessMessage(null);
     setLoading(true);
     try {
       await login(email, password);
@@ -44,6 +73,14 @@ export default function Login() {
           <h2 className="text-2xl font-bold tracking-tight text-white">Welcome Back</h2>
           <p className="text-sm text-slate-400 mt-1">Sign in to your EcoMatch account</p>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-start space-x-3 text-emerald-400 text-sm">
+            <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

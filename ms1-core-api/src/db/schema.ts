@@ -135,7 +135,7 @@ export const dealEvents = pgTable('deal_events', {
   eventType: varchar('event_type', { length: 255 }).notNull(),
   actorId: uuid('actor_id')
     .notNull()
-    .references(() => users.id, { onDelete: 'restrict' }),
+    .references(() => users.id, { onDelete: 'cascade' }),
   description: text('description').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

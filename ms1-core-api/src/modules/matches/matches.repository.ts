@@ -85,5 +85,61 @@ export class MatchesRepository {
     }
     return null;
   }
+
+  async getBusinessById(businessId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.businesses)
+      .where(eq(schema.businesses.id, businessId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getUserById(userId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getClassificationBySubmissionId(submissionId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.materialClassifications)
+      .where(eq(schema.materialClassifications.submissionId, submissionId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getSubmissionById(submissionId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.submissions)
+      .where(eq(schema.submissions.id, submissionId))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async saveDraftsAndLogEvent(
+    drafts: (typeof schema.outreachDrafts.$inferInsert)[],
+    dealEvent: typeof schema.dealEvents.$inferInsert,
+    submissionId: string
+  ) {
+    const db = getDb();
+    await db.transaction(async (tx) => {
+      await tx.insert(schema.outreachDrafts).values(drafts);
+      await tx.insert(schema.dealEvents).values(dealEvent);
+      await tx
+        .update(schema.submissions)
+        .set({ status: 'proposal_drafted' })
+        .where(eq(schema.submissions.id, submissionId));
+    });
+  }
 }
 

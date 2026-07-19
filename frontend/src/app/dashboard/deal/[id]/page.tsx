@@ -4,17 +4,17 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  Clock, 
-  Award, 
-  ShieldCheck, 
-  Truck, 
-  FileText, 
-  UploadCloud, 
-  DollarSign, 
-  Loader2, 
+import {
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  Award,
+  ShieldCheck,
+  Truck,
+  FileText,
+  UploadCloud,
+  DollarSign,
+  Loader2,
   AlertTriangle,
   Recycle
 } from 'lucide-react';
@@ -59,7 +59,7 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
     }
   };
 
-  
+
   useEffect(() => {
     fetchDealData();
   }, [submissionId]);
@@ -68,7 +68,17 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
     setLoading(true);
     setError(null);
     try {
-      const response = await api.getMatchBySubmission(submissionId);
+      let response;
+      try {
+        response = await api.getMatch(submissionId);
+      } catch (err: any) {
+        if (err.status === 404) {
+          response = await api.getMatchBySubmission(submissionId);
+        } else {
+          throw err;
+        }
+      }
+      
       const matchRecord = response.match;
       setMatch(matchRecord);
       setDrafts(response.outreachDrafts || []);
@@ -104,7 +114,7 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
       await api.submitEvidence(match.id, { evidenceType, evidenceUrl });
       // 2. Confirm verification — businessId is resolved server-side from JWT
       await api.confirmVerification(match.id);
-      
+
       // Reload deal details
       await fetchDealData();
     } catch (err: any) {
@@ -163,7 +173,7 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
   const timelineSteps = [
     { label: 'Match Proposed', completed: true, icon: ShieldCheck },
     { label: 'Accepted by Both', completed: match.status !== 'proposed' && match.status !== 'rejected', icon: CheckCircle },
-    { label: 'Logistics Arranged', completed: ['logistics_scheduled', 'completed', 'verified'].includes(match.status), icon: Truck },
+    { label: 'Logistics Arranged', completed: ['both_accepted', 'logistics_scheduled', 'completed', 'verified'].includes(match.status), icon: Truck },
     { label: 'Evidence Verified', completed: verifications.length === 2 && verifications.every(v => v.confirmed), icon: FileText },
     { label: 'Certificate Issued', completed: match.status === 'verified', icon: Award },
   ];
@@ -191,11 +201,10 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
             const Icon = step.icon;
             return (
               <div key={idx} className="flex items-center md:flex-col md:text-center space-x-4 md:space-x-0 md:space-y-3 z-10">
-                <div className={`p-2.5 rounded-full border ${
-                  step.completed 
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                <div className={`p-2.5 rounded-full border ${step.completed
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                     : 'bg-slate-950 border-slate-900 text-slate-600'
-                }`}>
+                  }`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
@@ -242,11 +251,11 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
       {/* Main Grid split: Verification Form & Certificate */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
+
         {/* Left Side: Verification Records */}
         <div className="bg-slate-900/40 border border-slate-900 p-8 rounded-2xl space-y-6">
           <h3 className="text-lg font-bold text-white border-b border-slate-900 pb-3">Delivery Verification</h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-900/80">
               <div>
@@ -281,19 +290,18 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
           {!myVerification?.confirmed && (
             <form onSubmit={handleUploadEvidence} className="bg-slate-950 p-6 rounded-2xl border border-slate-900 space-y-4 pt-6">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Submit Delivery Evidence</span>
-              
+
               <div>
                 <label className="block text-[10px] text-slate-500 font-semibold mb-2">EVIDENCE TYPE</label>
                 <div className="grid grid-cols-2 gap-4">
-                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${
-                    evidenceType === 'receipt' 
-                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400' 
+                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${evidenceType === 'receipt'
+                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
                       : 'border-slate-800 bg-slate-950 text-slate-400'
-                  }`}>
-                    <input 
-                      type="radio" 
-                      name="evidence" 
-                      value="receipt" 
+                    }`}>
+                    <input
+                      type="radio"
+                      name="evidence"
+                      value="receipt"
                       checked={evidenceType === 'receipt'}
                       onChange={() => setEvidenceType('receipt')}
                       className="sr-only"
@@ -301,15 +309,14 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
                     <span className="text-xs font-bold">Hauler Receipt</span>
                   </label>
 
-                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${
-                    evidenceType === 'photo' 
-                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400' 
+                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${evidenceType === 'photo'
+                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
                       : 'border-slate-800 bg-slate-950 text-slate-400'
-                  }`}>
-                    <input 
-                      type="radio" 
-                      name="evidence" 
-                      value="photo" 
+                    }`}>
+                    <input
+                      type="radio"
+                      name="evidence"
+                      value="photo"
                       checked={evidenceType === 'photo'}
                       onChange={() => setEvidenceType('photo')}
                       className="sr-only"
@@ -456,6 +463,35 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
             </div>
           )}
         </div>
+      </div>
+
+      {/* Deal Activity Log Section */}
+      <div className="bg-slate-900/40 border border-slate-900 p-8 rounded-3xl backdrop-blur-sm space-y-6">
+        <h3 className="text-base font-bold text-white">Deal Activity Log</h3>
+        {events.length === 0 ? (
+          <p className="text-xs text-slate-500">No activity events recorded yet.</p>
+        ) : (
+          <div className="relative pl-6 border-l border-slate-800/80 space-y-6 ml-2">
+            {events.map((event) => (
+              <div key={event.id} className="relative">
+                {/* Timeline Node Dot */}
+                <div className="absolute -left-[32px] top-1 w-3 h-3 rounded-full bg-slate-950 border-2 border-emerald-400 shadow-md shadow-emerald-400/20"></div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      {event.eventType.replace(/_/g, ' ')}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {new Date(event.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{event.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

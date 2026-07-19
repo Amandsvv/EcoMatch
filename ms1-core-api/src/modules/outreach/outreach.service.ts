@@ -3,9 +3,6 @@ import { OutreachRepository } from './outreach.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 
-// Stub target email — this user never logs in, so we auto-accept on their behalf
-const STUB_TARGET_EMAIL = 'stub-targets@ecomatch.dev';
-
 export class OutreachService {
   private repository: OutreachRepository;
 
@@ -48,31 +45,11 @@ export class OutreachService {
     // Load all drafts to check if the other side is already accepted
     const allDrafts = await this.repository.getOutreachDraftsByMatchId(draft.matchId);
     const otherDrafts = allDrafts.filter(d => d.id !== outreachDraftId);
-    const otherAllAccepted = otherDrafts.every(d => d.status === 'accepted');
+    
+    // Both sides are accepted if there is at least one other draft and all other drafts are accepted.
+    const otherAllAccepted = otherDrafts.length > 0 && otherDrafts.every(d => d.status === 'accepted');
 
-    // Auto-accept on behalf of the stub target if they haven't accepted yet.
-    // The stub user (stub-targets@ecomatch.dev) never logs in, so we simulate
-    // their acceptance server-side when the real business accepts their side.
-    let stubAutoAcceptDraftId: string | null = null;
-    let stubUserId: string | null = null;
-
-    if (!otherAllAccepted) {
-      const pendingOtherDrafts = otherDrafts.filter(d => d.status === 'pending');
-      for (const pendingDraft of pendingOtherDrafts) {
-        const otherRole = pendingDraft.recipientRole;
-        const otherBusinessId = otherRole === 'source' ? match.sourceBusinessId : match.targetBusinessId;
-        const isStub = await this.repository.isStubBusiness(otherBusinessId, STUB_TARGET_EMAIL);
-        if (isStub) {
-          const stubUser = await this.repository.getUserByEmail(STUB_TARGET_EMAIL);
-          if (stubUser) {
-            stubAutoAcceptDraftId = pendingDraft.id;
-            stubUserId = stubUser.id;
-          }
-        }
-      }
-    }
-
-    const shouldUpdateMatch = otherAllAccepted || stubAutoAcceptDraftId !== null;
+    const shouldUpdateMatch = otherAllAccepted;
 
     let matchBothAcceptedEvent = undefined;
     if (shouldUpdateMatch) {
@@ -91,15 +68,12 @@ export class OutreachService {
       draft.matchId,
       acceptEvent,
       shouldUpdateMatch,
-      matchBothAcceptedEvent,
-      stubAutoAcceptDraftId,
-      stubUserId,
+      matchBothAcceptedEvent
     );
 
     if (shouldUpdateMatch) {
       logger.info('Both sides accepted — match status updated to both_accepted', {
         matchId: draft.matchId,
-        autoAcceptedStubDraft: stubAutoAcceptDraftId,
       });
     }
 

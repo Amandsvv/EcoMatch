@@ -19,6 +19,7 @@ import {
   Trash2,
   LogOut,
   X,
+  MessageSquare,
 } from 'lucide-react';
 
 interface Submission {
@@ -109,8 +110,9 @@ function DeleteConfirmModal({
 }
 
 export default function Dashboard() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [incomingMatches, setIncomingMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,6 +130,22 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
+  // Fetch incoming matches (where this user is the TARGET) separately,
+  // triggered once user is resolved from localStorage (user starts as null).
+  useEffect(() => {
+    if (!user?.businessId) return;
+    api.getMatchesForBusiness(user.businessId)
+      .then((bizMatches: any[]) => {
+        const targetMatches = (bizMatches || []).filter(
+          (m: any) => m.targetBusinessId === user.businessId
+        );
+        setIncomingMatches(targetMatches);
+      })
+      .catch(() => {
+        // Non-critical — hide section if it fails
+      });
+  }, [user?.businessId]);
+
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
@@ -143,15 +161,12 @@ export default function Dashboard() {
         if (sub.status === 'match_proposed' || sub.status === 'both_accepted') {
           activeCount++;
         }
-        if (sub.status === 'verified') {
+        if (sub.status === 'verified' && sub.match?.id) {
           try {
-            const matchData = await api.getMatch(sub.id);
-            if (matchData) {
-              const cert = await api.getCertificate(matchData.id);
-              if (cert) {
-                co2 += cert.co2eAvoidedKg;
-                dollars += cert.dollarsSaved;
-              }
+            const cert = await api.getCertificate(sub.match.id);
+            if (cert) {
+              co2 += cert.co2eAvoidedKg;
+              dollars += cert.dollarsSaved;
             }
           } catch {
             // Ignore certificate fetch errors for stats
@@ -257,6 +272,14 @@ export default function Dashboard() {
     );
   }
 
+  const surplusMaterials = submissions.filter((sub) =>
+    ['submitted', 'low_confidence', 'needs_followup', 'hazard_detected', 'no_match_found'].includes(sub.status)
+  );
+
+  const symbiosisDeals = submissions.filter((sub) =>
+    ['match_proposed', 'proposal_drafted', 'both_accepted', 'verified'].includes(sub.status)
+  );
+
   return (
     <>
       {/* Delete confirm modal */}
@@ -343,17 +366,20 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Submissions Section */}
+        {/* Section 1: Surplus Materials */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white">Material Submissions & Matches</h3>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Recycle className="h-5 w-5 text-emerald-400" />
+            Surplus Materials
+          </h3>
 
-          {submissions.length === 0 ? (
+          {surplusMaterials.length === 0 ? (
             <div className="bg-slate-900/20 border border-slate-900 border-dashed rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
               <Recycle className="h-12 w-12 text-slate-700" />
               <div className="space-y-1">
-                <h4 className="font-bold text-white">No submissions or matches yet</h4>
+                <h4 className="font-bold text-white">No pending materials</h4>
                 <p className="text-sm text-slate-500 max-w-sm">
-                  Describe your material (brewery grains, cardboard, cooking oil) to find nearby symbiosis matches.
+                  All submitted materials have been matched or you haven't submitted any material yet.
                 </p>
               </div>
 
@@ -366,7 +392,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="bg-slate-900/30 border border-slate-900 rounded-3xl overflow-hidden divide-y divide-slate-900">
-              {submissions.map((sub) => (
+              {surplusMaterials.map((sub) => (
                 <div
                   key={sub.id}
                   className="p-6 hover:bg-slate-900/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -393,39 +419,28 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {sub.status === 'match_proposed' && (
+                    {sub.status === 'submitted' && (
                       <Link
-                        href={`/dashboard/match/${sub.id}`}
+                        href={`/dashboard/submit?id=${sub.id}`}
                         className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
                       >
-                        <span>Review Proposed Match</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    )}
-                    {(sub.status === 'both_accepted' || sub.status === 'verified') && (
-                      <Link
-                        href={`/dashboard/deal/${sub.id}`}
-                        className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
-                      >
-                        <span>Track Deal</span>
+                        <span>Find Match</span>
                         <ChevronRight className="h-4 w-4" />
                       </Link>
                     )}
                     {sub.status === 'needs_followup' && (
                       <Link
                         href={`/dashboard/submit?followup=${sub.id}`}
-                        className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                        className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
                       >
                         <span>Respond to Question</span>
                         <ChevronRight className="h-4 w-4" />
                       </Link>
                     )}
-
-                    {/* Delete button — only for non-active statuses */}
                     {isDeletable(sub.status) && (
                       <button
                         onClick={() => setDeleteTarget(sub)}
-                        className="h-8 w-8 inline-flex items-center justify-center rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/5 border border-transparent hover:border-red-500/20 transition-all"
+                        className="p-2 text-slate-500 hover:text-red-400 transition-colors border border-transparent hover:border-slate-800 rounded-xl"
                         title="Delete submission"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -437,6 +452,134 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Section 2: Symbiosis Deals */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
+            Symbiosis Deals
+          </h3>
+
+          {symbiosisDeals.length === 0 ? (
+            <div className="bg-slate-900/20 border border-slate-900 border-dashed rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
+              <TrendingUp className="h-12 w-12 text-slate-700" />
+              <div className="space-y-1">
+                <h4 className="font-bold text-white">No active deals yet</h4>
+                <p className="text-sm text-slate-500 max-w-sm">
+                  Active matching deals, outreach proposals, and verified agreements will appear here.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-900/30 border border-slate-900 rounded-3xl overflow-hidden divide-y divide-slate-900">
+              {symbiosisDeals.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="p-6 hover:bg-slate-900/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5 max-w-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">
+                        Matched {new Date(sub.createdAt).toLocaleDateString()}
+                      </span>
+                      {getStatusBadge(sub.status)}
+                    </div>
+                    <h4 className="font-semibold text-white text-sm line-clamp-1">
+                      {sub.rawDescription}
+                    </h4>
+                    {sub.match && (
+                      <p className="text-xs text-slate-400">
+                        Match Confidence: <span className="text-emerald-400 font-medium">{(sub.match.matchConfidence * 100).toFixed(0)}%</span> • Distance: <span className="text-slate-300 font-medium">{sub.match.distanceKm?.toFixed(1)} km</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {['match_proposed', 'proposal_drafted'].includes(sub.status) && (
+                      <Link
+                        href={`/dashboard/match/${sub.id}`}
+                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <span>Review Proposal</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                    {(sub.status === 'both_accepted' || sub.status === 'verified') && (
+                      <Link
+                        href={`/dashboard/deal/${sub.match?.id || sub.id}`}
+                        className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <span>Track Deal</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Received Proposals (target businesses only) */}
+        {incomingMatches.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-emerald-400" />
+              Received Proposals
+            </h3>
+            <div className="bg-slate-900/30 border border-slate-900 rounded-3xl overflow-hidden divide-y divide-slate-900">
+              {incomingMatches.map((m: any) => (
+                <div
+                  key={m.id}
+                  className="p-6 hover:bg-slate-900/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5 max-w-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">
+                        Proposed {new Date(m.createdAt).toLocaleDateString()}
+                      </span>
+                      {getStatusBadge(m.status)}
+                    </div>
+                    <h4 className="font-semibold text-white text-sm">
+                      Incoming symbiosis match from a supplier
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      Match Confidence:{' '}
+                      <span className="text-emerald-400 font-medium">
+                        {(m.matchConfidence * 100).toFixed(0)}%
+                      </span>{' '}
+                      • Distance:{' '}
+                      <span className="text-slate-300 font-medium">
+                        {m.distanceKm?.toFixed(1)} km
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {['match_proposed', 'proposal_drafted'].includes(m.status) && (
+                      <Link
+                        href={`/dashboard/match/${m.id}`}
+                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <span>Review Proposal</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                    {(m.status === 'both_accepted' || m.status === 'verified') && (
+                      <Link
+                        href={`/dashboard/deal/${m.id}`}
+                        className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <span>Track Deal</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

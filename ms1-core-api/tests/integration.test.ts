@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import app from '../src/index';
 import { getDb, closeDb, schema } from '../src/db';
@@ -130,9 +130,15 @@ describe('EcoMatch Core API - Integration Tests', () => {
         });
 
       expect(res.status).toBe(201);
-      // Since the target business is type 'farm' (matches organic), it won't match textiles.
-      // Thus no Candidates in Radius / low confidence, returns no_match_found.
-      expect(res.body.status).toBe('no_match_found');
+      expect(res.body.status).toBe('submitted');
+
+      // Call findMatch manually
+      const matchRes = await request(app)
+        .post(`/submissions/${res.body.submissionId}/match`)
+        .set('Authorization', `Bearer ${sourceToken}`);
+
+      expect(matchRes.status).toBe(200);
+      expect(matchRes.body.status).toBe('no_match_found');
 
       // Verify no match row created
       const matches = await db
@@ -158,10 +164,27 @@ describe('EcoMatch Core API - Integration Tests', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.status).toBe('match_proposed');
-      expect(res.body.matchId).toBeDefined();
+      expect(res.body.status).toBe('submitted');
 
-      const matchId = res.body.matchId;
+      // Find match manually
+      const matchRes = await request(app)
+        .post(`/submissions/${res.body.submissionId}/match`)
+        .set('Authorization', `Bearer ${sourceToken}`);
+
+      expect(matchRes.status).toBe(200);
+      expect(matchRes.body.status).toBe('match_proposed');
+      expect(matchRes.body.match).toBeDefined();
+      expect(matchRes.body.match.id).toBeDefined();
+
+      const matchId = matchRes.body.match.id;
+
+      // Draft proposal manually
+      const draftRes = await request(app)
+        .post(`/matches/${matchId}/draft`)
+        .set('Authorization', `Bearer ${sourceToken}`);
+
+      expect(draftRes.status).toBe(200);
+      expect(draftRes.body.status).toBe('proposal_drafted');
 
       // 2. Retrieve match details (Rule 4.2: No contact info exposed)
       const matchDetailsRes = await request(app)

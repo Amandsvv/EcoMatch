@@ -222,12 +222,13 @@ def _route_after_fail_safe(state: ScoutState) -> str:
 def _build_scout_graph():
     graph = StateGraph(ScoutState)
 
-    graph.add_node("parse_input", _node_parse_input)
     graph.add_node("llm_full_classify", _node_llm_full_classify)
     graph.add_node("fail_safe_override", _node_fail_safe_override)
+    graph.add_node("parse_input", _node_parse_input)
     graph.add_node("followup_decision", _node_followup_decision)
 
     graph.set_entry_point("parse_input")
+    
     graph.add_edge("parse_input", "llm_full_classify")
     graph.add_edge("llm_full_classify", "fail_safe_override")
     graph.add_conditional_edges(

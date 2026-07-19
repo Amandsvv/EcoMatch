@@ -32,9 +32,18 @@ export class AuthController {
   verifyEmail = async (req: Request, res: Response) => {
     try {
       const token = req.query.token as string;
-      await this.service.verifyEmail(token);
+      const result = await this.service.verifyEmail(token);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/login?verified=true`);
+      const userParam = encodeURIComponent(
+        JSON.stringify({
+          id: result.userId,
+          email: result.email,
+          role: result.role,
+          businessId: result.businessId,
+          businessName: result.businessName,
+        })
+      );
+      res.redirect(`${frontendUrl}/login?verified=true&token=${result.token}&user=${userParam}`);
     } catch (error) {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       res.redirect(`${frontendUrl}/login?error=${encodeURIComponent((error as any).message || 'Verification failed')}`);

@@ -49,4 +49,15 @@ export class SubmissionsController {
       next(error);
     }
   };
+
+  findMatch = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { submissionId } = req.params;
+      const result = await this.service.findMatch(submissionId, req.userId!);
+      logger.info('Manual find match triggered', { traceId: req.traceId, submissionId, userId: req.userId });
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

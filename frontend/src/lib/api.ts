@@ -54,11 +54,14 @@ export const api = {
   getSubmission: (id: string) => request(`/submissions/${id}`),
   getSubmissions: () => request('/submissions'),
   deleteSubmission: (id: string) => request(`/submissions/${id}`, { method: 'DELETE' }),
+  findMatch: (submissionId: string) => request(`/submissions/${submissionId}/match`, { method: 'POST' }),
 
   // Matches
   getMatch: (matchId: string) => request(`/matches/${matchId}`),
   getMatchBySubmission: (submissionId: string) => request(`/matches/submission/${submissionId}`),
+  getMatchesForBusiness: (businessId: string) => request(`/matches/business/${businessId}`),
   getMatches: () => request('/matches'),
+  draftMessage: (matchId: string) => request(`/matches/${matchId}/draft`, { method: 'POST' }),
 
   // Outreach (Accept/Reject Match Proposal)
   acceptMatch: (matchId: string) => request(`/outreach/${matchId}/accept`, { method: 'POST' }),
@@ -66,7 +69,7 @@ export const api = {
 
   // Verification
   submitEvidence: (matchId: string, body: { evidenceType: string; evidenceUrl?: string }) => request(`/verification/${matchId}/submit`, { method: 'POST', body: JSON.stringify(body) }),
-  confirmVerification: (matchId: string) => request(`/verification/${matchId}/confirm`, { method: 'POST' }),
+  confirmVerification: (matchId: string, body?: any) => request(`/verification/${matchId}/confirm`, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   getVerificationRecords: (matchId: string) => request(`/verification/${matchId}`),
 
   // Uploads

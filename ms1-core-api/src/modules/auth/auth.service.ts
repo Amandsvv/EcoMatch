@@ -57,11 +57,9 @@ export class AuthService {
             throw new Error('No coordinates found for the provided location');
           }
         } catch (error: any) {
-          throw new AppError(
-            ErrorCodes.INVALID_REQUEST,
-            400,
-            `Geocoding failed: ${error.message || 'Unknown geocoding error'}`
-          );
+          logger.warn(`Geocoding failed: ${error.message || 'Unknown geocoding error'}. Falling back to default coordinates (Delhi/Gurugram).`);
+          latitude = 28.4595;
+          longitude = 77.0266;
         }
       }
     }
@@ -171,14 +169,43 @@ export class AuthService {
       throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Invalid or expired verification token');
     }
 
-    const expiry = user.emailVerificationExpiry;
-    if (expiry && new Date() > new Date(expiry)) {
-      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Verification token has expired');
+    if (!user.emailVerified) {
+      const expiry = user.emailVerificationExpiry;
+      if (expiry && Date.now() > new Date(expiry).getTime()) {
+        throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Verification token has expired');
+      }
+
+      await this.repository.markEmailVerified(user.id);
+      logger.info('Email verified successfully', { userId: user.id, email: user.email });
+    } else {
+      logger.info('Email was already verified', { userId: user.id, email: user.email });
     }
 
-    await this.repository.markEmailVerified(user.id);
-    logger.info('Email verified successfully', { userId: user.id, email: user.email });
-    return { success: true };
+    // Generate JWT token so the frontend can automatically log the user in
+    const jwtToken = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    let businessId = null;
+    let businessName = null;
+    if (user.role === 'business') {
+      const business = await this.repository.getBusinessByUserId(user.id);
+      if (business) {
+        businessId = business.id;
+        businessName = business.name;
+      }
+    }
+
+    return {
+      token: jwtToken,
+      userId: user.id,
+      email: user.email,
+      businessId,
+      businessName,
+      role: user.role,
+    };
   }
 
   async deleteAccount(userId: string) {

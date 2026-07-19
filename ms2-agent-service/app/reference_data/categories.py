@@ -4,7 +4,7 @@
 CATEGORIES = {
     "organic_biomass": {
         "description": "Food scraps, spent grain, coffee grounds, vegetable waste",
-        "compatible_business_types": ["compost_operation", "mushroom_farm", "biogas_plant", "animal_feed_processor"],
+        "compatible_business_types": ["compost_operation", "mushroom_farm", "biogas_plant", "animal_feed_processor", "farm"],
         "market_price_per_unit": 80,  # $ per ton reference price
     },
     "cardboard_paper": {

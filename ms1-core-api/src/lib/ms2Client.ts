@@ -34,6 +34,13 @@ interface MatchRequest {
   };
   sourceBusinessType: string;
   sourceBusinessId: string;
+  candidates?: {
+    id: string;
+    name: string;
+    type: string;
+    lat: number;
+    lng: number;
+  }[];
 }
 
 interface MatchResponse {
@@ -52,6 +59,12 @@ interface DraftRequest {
     targetBusinessId: string;
     estimatedSourceSavings: number;
     estimatedTargetSavingsPct: number;
+    classification?: {
+      primaryCategory: string;
+      subtype?: string;
+      estimatedComposition?: Record<string, unknown> | null;
+      confidence: number;
+    };
   };
   sourceBusiness: {
     name: string;

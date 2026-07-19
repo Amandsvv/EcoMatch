@@ -1,11 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcrypt';
 import { SubmissionsRepository } from './submissions.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import MS2Client from '../../lib/ms2Client';
-import { sendEmail } from '../../lib/mailer';
-import { matchProposalEmailHtml } from '../../lib/email-templates';
 
 
 export class SubmissionsService {
@@ -50,6 +47,14 @@ export class SubmissionsService {
       );
     }
 
+    const status = classification.hazardFlag 
+      ? 'hazard_detected' 
+      : (classification.confidence < 0.7 && classification.needsFollowup && classification.followupQuestion)
+        ? 'needs_followup'
+        : (classification.confidence < 0.7)
+          ? 'low_confidence'
+          : 'submitted';
+
     const classificationId = uuidv4();
     const submissionRecord = {
       id: submissionId,
@@ -58,7 +63,7 @@ export class SubmissionsService {
       photoRefs: photoRefsJson,
       disposalCostPerUnit,
       disposalFrequency,
-      status: 'submitted' as const,
+      status: status,
     };
 
     const classificationRecord = {
@@ -83,44 +88,44 @@ export class SubmissionsService {
       confidence: classification.confidence,
     });
 
-    // If hazard flag, stop here
-    if (classification.hazardFlag) {
-      logger.warn('Hazard flag detected - stopping pipeline', { submissionId });
-      return {
-        submissionId,
-        classification,
-        status: 'hazard_detected',
-      };
+    return {
+      submissionId,
+      classification: classificationRecord,
+      status: status,
+    };
+  }
+
+  async findMatch(submissionId: string, userId: string): Promise<any> {
+    const submission = await this.repository.getSubmissionById(submissionId);
+    if (!submission) {
+      throw new AppError(ErrorCodes.SUBMISSION_NOT_FOUND, 404, 'Submission not found');
     }
 
-    // If low confidence and no followup asked yet, return with followup question
-    if (classification.confidence < 0.7 && classification.needsFollowup && classification.followupQuestion) {
-      logger.info('Low confidence - requesting followup', { submissionId, confidence: classification.confidence });
-      return {
-        submissionId,
-        classification,
-        status: 'needs_followup',
-      };
+    // Resolve business for the logged-in user
+    const business = await this.repository.getBusinessByIdAndUserId(submission.businessId, userId);
+    if (!business) {
+      throw new AppError(ErrorCodes.FORBIDDEN, 403, 'Not authorized to find match for this submission');
     }
 
-    // If still low confidence after followup, stop
-    if (classification.confidence < 0.7) {
-      logger.warn('Classification confidence too low - cannot proceed', { submissionId, confidence: classification.confidence });
-      return {
-        submissionId,
-        classification,
-        status: 'low_confidence',
-      };
+    const classification = await this.repository.getClassificationBySubmissionId(submissionId);
+    if (!classification) {
+      throw new AppError(ErrorCodes.SUBMISSION_NOT_FOUND, 404, 'Classification not found');
     }
 
-    // Proceed to Alchemist Agent for matching
+    // Fetch real registered candidates from the database (excluding current business)
+    const dbCandidates = await this.repository.getAllBusinessesExcept(submission.businessId);
+
+    // Call MS2 Alchemist Agent to match
+    const ms2Client = new MS2Client(process.env.MS2_BASE_URL);
     let matchResult;
     try {
       matchResult = await ms2Client.match({
         classification: {
           primaryCategory: classification.primaryCategory,
-          subtype: classification.subtype,
-          estimatedComposition: classification.estimatedComposition,
+          subtype: classification.subtype || undefined,
+          estimatedComposition: typeof classification.estimatedComposition === 'string'
+            ? JSON.parse(classification.estimatedComposition)
+            : classification.estimatedComposition,
           confidence: classification.confidence,
           hazardFlag: classification.hazardFlag,
         },
@@ -129,9 +134,17 @@ export class SubmissionsService {
           lng: business.lng,
         },
         sourceBusinessType: business.type,
-        sourceBusinessId: businessId,
+        sourceBusinessId: submission.businessId,
+        candidates: dbCandidates.map(c => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          lat: c.lat,
+          lng: c.lng,
+        })),
       });
-    } catch (error) {
+    } catch (error: any) {
+      logger.error('Matching service call failed', { error: error.message, response: error.response?.data });
       throw new AppError(
         ErrorCodes.MS2_SERVICE_UNAVAILABLE,
         503,
@@ -146,119 +159,19 @@ export class SubmissionsService {
         noCandidatesInRadius: matchResult?.noCandidatesInRadius,
         matchConfidence: matchResult?.matchConfidence,
       });
+
+      // Update submission status to no_match_found in DB
+      await this.repository.updateSubmissionStatus(submissionId, 'no_match_found');
+
       return {
-        submissionId,
-        classification,
         status: 'no_match_found',
       };
     }
 
-    // Ensure the target business exists in the database (since ms2 has static mock businesses for Phase 1b)
-    const targetBusinessId = matchResult.targetBusinessId;
-    if (targetBusinessId) {
-      const existingTarget = await this.repository.getBusinessById(targetBusinessId);
-
-      if (!existingTarget) {
-        logger.info('Inserting missing mock target business into database', { targetBusinessId });
-        
-        const mockMap: Record<string, { name: string; type: string; address: string; lat: number; lng: number; phone: string }> = {
-          '00000000-0000-0000-0000-000000000001': {
-            name: 'Local Compost Operations',
-            type: 'farm',
-            address: '789 Compost Way, New York, NY 10006',
-            lat: 40.715,
-            lng: -74.008,
-            phone: '555-9001',
-          },
-          '00000000-0000-0000-0000-000000000002': {
-            name: 'Urban Mushroom Farm',
-            type: 'farm',
-            address: '456 Fungi Ave, New York, NY 10006',
-            lat: 40.720,
-            lng: -74.005,
-            phone: '555-9002',
-          },
-          '00000000-0000-0000-0000-000000000003': {
-            name: 'Recycling Hub',
-            type: 'recycling_center',
-            address: '123 Plastic Road, New York, NY 10006',
-            lat: 40.710,
-            lng: -74.015,
-            phone: '555-9003',
-          },
-        };
-
-        const mockData = mockMap[targetBusinessId] || {
-          name: 'Compatible Target Partner',
-          type: 'farm',
-          address: '456 Partner Lane, New York, NY 10006',
-          lat: 40.715,
-          lng: -74.008,
-          phone: '555-9999',
-        };
-
-        const existingUser = await this.repository.getUserByEmail('stub-targets@ecomatch.dev');
-        const stubUserId = existingUser ? existingUser.id : uuidv4();
-        const passwordHash = await bcrypt.hash('password123', 8);
-        
-        await this.repository.ensureUserAndBusinessExist(
-          {
-            id: stubUserId,
-            email: 'stub-targets@ecomatch.dev',
-            passwordHash: passwordHash,
-            role: 'business',
-          },
-          {
-            id: targetBusinessId,
-            userId: stubUserId,
-            name: mockData.name,
-            type: mockData.type,
-            address: mockData.address,
-            lat: mockData.lat,
-            lng: mockData.lng,
-            phone: mockData.phone,
-          }
-        );
-      }
-    }
-
-    // Call Negotiator Agent to draft proposals
-    const targetBusiness = await this.repository.getBusinessById(matchResult.targetBusinessId);
-    if (!targetBusiness) {
-      throw new AppError(ErrorCodes.BUSINESS_NOT_FOUND, 404, 'Target business not found');
-    }
-
-    let draftResult;
     const matchId = uuidv4();
-    try {
-      draftResult = await ms2Client.draft({
-        match: {
-          sourceBusinessId: businessId,
-          targetBusinessId: matchResult.targetBusinessId,
-          estimatedSourceSavings: matchResult.estimatedSourceSavings,
-          estimatedTargetSavingsPct: matchResult.estimatedTargetSavingsPct,
-        },
-        sourceBusiness: {
-          name: business.name,
-          type: business.type,
-        },
-        targetBusiness: {
-          name: targetBusiness.name,
-          type: targetBusiness.type,
-        },
-      });
-    } catch (error) {
-      throw new AppError(
-        ErrorCodes.MS2_SERVICE_UNAVAILABLE,
-        503,
-        'Draft service is currently unavailable'
-      );
-    }
-
-    // Create match row, deal event, and drafts
     const matchRecord = {
       id: matchId,
-      sourceBusinessId: businessId,
+      sourceBusinessId: submission.businessId,
       targetBusinessId: matchResult.targetBusinessId,
       submissionId,
       matchRationale: matchResult.matchRationale,
@@ -277,98 +190,13 @@ export class SubmissionsService {
       description: `AI-matched with ${matchResult.targetBusinessId}. Confidence: ${matchResult.matchConfidence}`,
     };
 
-    const sourceDraftId = uuidv4();
-    const targetDraftId = uuidv4();
-    const draftsRecords = [
-      {
-        id: sourceDraftId,
-        matchId,
-        recipientRole: 'source' as const,
-        draftMessage: draftResult.sourceDraft.message,
-        proposedTerms: JSON.stringify(draftResult.sourceDraft.terms),
-        status: 'pending' as const,
-        notifiedAt: null,
-      },
-      {
-        id: targetDraftId,
-        matchId,
-        recipientRole: 'target' as const,
-        draftMessage: draftResult.targetDraft.message,
-        proposedTerms: JSON.stringify(draftResult.targetDraft.terms),
-        status: 'pending' as const,
-        notifiedAt: null,
-      },
-    ];
-
-    await this.repository.createMatchDealAndDrafts(matchRecord, dealEventRecord, draftsRecords);
-
-    logger.info('Match and outreach drafts created', {
-      matchId,
-      sourceBusinessId: businessId,
-      targetBusinessId: matchResult.targetBusinessId,
-      matchConfidence: matchResult.matchConfidence,
-    });
-
-    // Send real SES notifications
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const dashboardUrl = `${frontendUrl}/dashboard`;
-
-    // Fetch user emails
-    Promise.all([
-      this.repository.getUserById(business.userId),
-      this.repository.getUserById(targetBusiness.userId)
-    ]).then(([sourceUser, targetUser]) => {
-      if (sourceUser?.email) {
-        sendEmail(
-          sourceUser.email,
-          '♻️ New Symbiosis Match Proposed',
-          matchProposalEmailHtml({
-            businessName: business.name,
-            partnerBusinessName: targetBusiness.name,
-            matchRationale: matchResult.matchRationale,
-            matchConfidence: matchResult.matchConfidence,
-            estimatedSavings: matchResult.estimatedSourceSavings,
-            proposedTerms: draftResult.sourceDraft.terms,
-            draftMessage: draftResult.sourceDraft.message,
-            dashboardUrl,
-            role: 'source'
-          })
-        ).catch(err => logger.error('Failed to send source match proposal email', { error: err.message }));
-      }
-
-      if (targetUser?.email) {
-        sendEmail(
-          targetUser.email,
-          '♻️ New Symbiosis Match Proposed',
-          matchProposalEmailHtml({
-            businessName: targetBusiness.name,
-            partnerBusinessName: business.name,
-            matchRationale: matchResult.matchRationale,
-            matchConfidence: matchResult.matchConfidence,
-            estimatedSavings: null,
-            proposedTerms: draftResult.targetDraft.terms,
-            draftMessage: draftResult.targetDraft.message,
-            dashboardUrl,
-            role: 'target'
-          })
-        ).catch(err => logger.error('Failed to send target match proposal email', { error: err.message }));
-      }
-    }).catch(err => {
-      logger.error('Failed to resolve users for match email notifications', { error: err.message });
-    });
-
+    // Save match and log deal event in DB, and update submission status to match_proposed
+    await this.repository.saveMatchAndLogEvent(matchRecord, dealEventRecord);
+    await this.repository.updateSubmissionStatus(submissionId, 'match_proposed');
 
     return {
-      submissionId,
-      matchId,
-      classification,
-      match: {
-        targetBusinessId: matchResult.targetBusinessId,
-        matchRationale: matchResult.matchRationale,
-        matchConfidence: matchResult.matchConfidence,
-        distanceKm: matchResult.distanceKm,
-      },
       status: 'match_proposed',
+      match: matchRecord,
     };
   }
 

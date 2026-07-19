@@ -99,6 +99,14 @@ _CANDIDATE_BUSINESSES = [
         "estimated_volume_capacity": 200,
         "estimated_cost": 30,
     },
+    {
+        "id": "b6e4eaa6-0011-493a-9882-b4ab2d4356f6",
+        "name": "Mushroom Farm",
+        "type": "farm",
+        "lat": 28.1902, "lng": 77.0669,
+        "estimated_volume_capacity": 80,
+        "estimated_cost": 40,
+    },
 ]
 
 
@@ -156,13 +164,22 @@ def _node_discover_nearby_candidates(state: AlchemistState) -> dict:
     candidates = []
     source = state["source_location"]
 
-    for biz in _CANDIDATE_BUSINESSES:
+    # Use input candidates if provided, otherwise fall back to mock list
+    biz_list = state.get("candidates")
+    if not biz_list:
+        biz_list = _CANDIDATE_BUSINESSES
+
+    for biz in biz_list:
         if biz["type"] not in state["compatible_types"]:
             continue
         dist = _haversine_km(source, {"lat": biz["lat"], "lng": biz["lng"]})
         if dist <= radius_km:
             candidate = biz.copy()
             candidate["distance_km"] = round(dist, 2)
+            if "estimated_volume_capacity" not in candidate or candidate["estimated_volume_capacity"] is None:
+                candidate["estimated_volume_capacity"] = 80
+            if "estimated_cost" not in candidate or candidate["estimated_cost"] is None:
+                candidate["estimated_cost"] = 40
             candidates.append(candidate)
 
     if not candidates:
@@ -263,11 +280,15 @@ def _node_confidence_gate(state: AlchemistState) -> dict:
     source_savings = _to_float(result.get("estimatedSourceSavings"))
     target_savings_pct = _to_float(result.get("estimatedTargetSavingsPct"))
 
-    # Resolve chosen candidate for distance
+    # Resolve chosen candidate strictly from candidates list to prevent database FK issues
+    candidates = state.get("candidates", [])
     best_candidate = next(
-        (c for c in state.get("candidates", []) if c["id"] == best_id),
-        (state.get("candidates") or [{}])[0],
+        (c for c in candidates if c["id"] == best_id),
+        None,
     )
+    if not best_candidate and candidates:
+        best_candidate = candidates[0]
+        best_id = best_candidate["id"]
 
     if confidence < threshold:
         logger.info("Match confidence below threshold — suppressed", extra={
@@ -286,7 +307,7 @@ def _node_confidence_gate(state: AlchemistState) -> dict:
         "target_business_id": best_id,
         "match_rationale": rationale,
         "match_confidence": confidence,
-        "distance_km": best_candidate.get("distance_km", 0.0),
+        "distance_km": best_candidate.get("distance_km", 0.0) if best_candidate else 0.0,
         "estimated_source_savings": source_savings,
         "estimated_target_savings_pct": target_savings_pct,
         "suppressed": False,
@@ -367,7 +388,7 @@ class AlchemistAgent:
             "confidence_threshold": self.confidence_threshold,
             # Intermediate / output defaults
             "compatible_types": [],
-            "candidates": [],
+            "candidates": request.candidates or [],
             "category_info": {},
             "market_price": 0.0,
             "llm_result": {},

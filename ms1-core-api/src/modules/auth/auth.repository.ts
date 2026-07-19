@@ -28,8 +28,6 @@ export class AuthRepository {
       .update(schema.users)
       .set({
         emailVerified: true,
-        emailVerificationToken: null,
-        emailVerificationExpiry: null,
       })
       .where(eq(schema.users.id, userId));
   }
