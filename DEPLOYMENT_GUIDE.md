@@ -9,7 +9,7 @@ This guide describes how to deploy the EcoMatch services (frontend, ms1-core-api
 ```mermaid
 graph TD
     User([User Browser]) -->|HTTPS: 443| Nginx[NGINX Reverse Proxy]
-    Nginx -->|Proxy: 3000| Frontend[Next.js Frontend]
+    Nginx -->|Proxy: 3000| Frontend[Next.js Frontend Standalone]
     Nginx -->|Proxy: 4000| MS1[ms1-core-api Express]
     MS1 -->|Internal: 8000| MS2[ms2-agent-service FastAPI]
     MS1 -->|Internal: 5432| DB[(PostgreSQL)]
@@ -22,10 +22,10 @@ All services run inside a single Docker network on the EC2 instance, with NGINX 
 
 ## 2. Docker & Environment Readiness Check
 
-The Dockerfiles for all three services are fully configured and production-ready:
-- [x] **ms1-core-api**: Uses a two-stage Alpine build compiling TypeScript down to JavaScript, running the final application with standard Node.
-- [x] **ms2-agent-service**: Uses a slim Python build, exposing Uvicorn on port 8000 with pre-configured health checks.
-- [x] **frontend**: Uses a two-stage Alpine build executing Next.js production server (`next start`).
+The Dockerfiles for all three services are optimized for multi-stage production builds and security hardening:
+- [x] **ms1-core-api**: Uses a multi-stage Node 20 Alpine build. Compiles TypeScript to JavaScript in `builder` stage, runs in `runner` stage with `npm ci --omit=dev`, non-root user `node`, built-in HTTP healthcheck, and copied migration files.
+- [x] **ms2-agent-service**: Uses a multi-stage Python 3.11 slim build. Installs requirements in `builder` stage, runs in `runner` stage with non-root system user `appuser`, `PYTHONUNBUFFERED=1`, and httpx healthchecks.
+- [x] **frontend**: Uses a multi-stage Node 20 Alpine build leveraging Next.js `standalone` mode. Compiles standalone server bundle in `builder` stage, runs minimal `node server.js` in `runner` stage under non-root `nextjs` user.
 
 ### CORS Configuration
 The Express backend has been updated to dynamically allow requests from your production frontend URL:
@@ -40,29 +40,22 @@ app.use(cors({
 
 ## 3. Production Environment Variables
 
-Create two separate `.env` configuration files on the EC2 host:
+Create two separate `.env` configuration files or a root `.env` file on the host:
 
-### For ms1-core-api (`./ms1-core-api/.env`)
+### Root `.env` (for Docker Compose)
 ```bash
 NODE_ENV=production
-PORT=4000
-DATABASE_URL=postgresql://ecomatch:your_secure_password@postgres:5432/ecomatch
+POSTGRES_USER=ecomatch
+POSTGRES_PASSWORD=your_secure_postgres_password
+POSTGRES_DB=ecomatch
 JWT_SECRET=your-extremely-secure-jwt-key
-MS2_BASE_URL=http://ms2:8000
 FRONTEND_URL=https://your-domain.com
+NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com
 AWS_REGION=us-east-1
-# Add AWS access keys if EC2 instance profile role is not used
 AWS_ACCESS_KEY_ID=your-aws-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret
-```
-
-### For ms2-agent-service (`./ms2-agent-service/.env`)
-```bash
-PORT=8000
-LOG_LEVEL=info
 USE_LLM=true
 LLM_MODEL=claude-3-haiku-20240307
-# Add API Key for classified reasoning
 ANTHROPIC_API_KEY=your-anthropic-api-key
 SCOUT_CONFIDENCE_THRESHOLD=0.7
 ALCHEMIST_CONFIDENCE_THRESHOLD=0.7
@@ -89,18 +82,12 @@ sudo chmod +x /usr/local/bin/docker-compose
 ```
 
 ### Step 2: Clone & Configure
-Clone the repo on your EC2 instance and write the `.env` files shown in Section 3.
+Clone the repo on your EC2 instance and write the `.env` file shown in Section 3.
 
-### Step 3: Run Database Migrations
-Run Drizzle migrations inside the ms1 container:
+### Step 3: Run the Stack with Production Compose
+Build and launch all containers (including automatic database migration execution) in the background:
 ```bash
-docker-compose run ms1 npm run db:migrate
-```
-
-### Step 4: Run the Stack
-Build and launch the containers in the background:
-```bash
-docker-compose up -d --build
+docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---

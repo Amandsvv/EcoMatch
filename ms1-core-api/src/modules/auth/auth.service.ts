@@ -96,7 +96,7 @@ export class AuthService {
     );
 
     // Send verification email in background
-    const backendUrl = `http://localhost:${process.env.PORT || 4000}`;
+    const backendUrl = process.env.BACKEND_URL || process.env.API_BASE_URL || process.env.SERVER_URL || `http://localhost:${process.env.PORT || 4000}`;
     const verifyUrl = `${backendUrl}/auth/verify-email?token=${verificationToken}`;
     
     sendEmail(
