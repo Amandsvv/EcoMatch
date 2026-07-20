@@ -17,14 +17,13 @@ services:
       retries: 5
     networks:
       - ecomatch-network
-
   db-migrate:
     build:
       context: ./ms1-core-api
       dockerfile: Dockerfile
-    command: npm run db:migrate
+    command: npm run db:migrate:prod
     env_file:
-      - ./ms1-core-api/.env
+    - ./ms1-core-api/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ecomatch}:${POSTGRES_PASSWORD:-ecomatch}@postgres:5432/${POSTGRES_DB:-ecomatch}
     depends_on:
