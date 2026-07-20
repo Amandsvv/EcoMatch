@@ -40,8 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-slate-950 text-slate-100 min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      <div className="flex-1 flex flex-col justify-center items-center bg-[#F9FAFB] min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
       </div>
     );
   }
@@ -108,45 +108,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
+  const inputCls = "w-full bg-white border border-[#D1D5DB] focus:border-[#0F6FE8] rounded-xl px-4 py-2.5 text-sm text-[#111827] transition-all outline-none";
+  const labelCls = "block text-xs font-semibold text-[#374151] uppercase tracking-wider mb-1.5";
+
   return (
-    <div className="flex-1 flex bg-slate-950 text-slate-100 min-h-screen">
+    <div className="flex-1 flex bg-[#F9FAFB] text-[#111827] min-h-screen">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-slate-900 bg-slate-950 flex flex-col justify-between shrink-0">
+      <aside className="w-64 border-r border-[#E5E7EB] bg-white flex flex-col justify-between shrink-0 shadow-sm">
         <div>
           {/* Logo */}
-          <div className="h-16 border-b border-slate-900 px-6 flex items-center space-x-2">
-            <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-              <Recycle className="h-5 w-5 text-emerald-400" />
+          <div className="h-16 border-b border-[#E5E7EB] px-6 flex items-center space-x-2.5">
+            <div className="bg-[#EFF6FF] p-2 rounded-lg border border-[#BFDBFE]">
+              <Recycle className="h-5 w-5 text-[#0F6FE8]" />
             </div>
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+            <span className="text-lg font-bold tracking-tight text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>
               EcoMatch
             </span>
           </div>
 
           {/* Business Info / Profile Menu Trigger */}
-          <div ref={menuRef} className="relative p-4 border-b border-slate-900/60">
+          <div ref={menuRef} className="relative p-4 border-b border-[#E5E7EB]">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-full text-left p-3 rounded-2xl hover:bg-slate-900/40 transition-all flex items-center justify-between group"
+              className="w-full text-left p-3 rounded-xl hover:bg-[#F3F4F6] transition-all flex items-center justify-between group"
             >
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-white truncate">{user?.businessName || 'Your Business'}</div>
-                <div className="text-xs text-slate-500 truncate mt-0.5">{user?.email}</div>
-                <span className="inline-block bg-emerald-500/5 text-emerald-400 border border-emerald-500/10 text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 uppercase tracking-wide">
+                <div className="text-sm font-semibold text-[#111827] truncate">{user?.businessName || 'Your Business'}</div>
+                <div className="text-xs text-[#6B7280] truncate mt-0.5">{user?.email}</div>
+                <span className="inline-block bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 uppercase tracking-wide">
                   {user?.role}
                 </span>
               </div>
-              <Settings className="h-4 w-4 text-slate-500 group-hover:text-slate-300 transition-colors ml-2 shrink-0" />
+              <Settings className="h-4 w-4 text-[#9CA3AF] group-hover:text-[#4B5563] transition-colors ml-2 shrink-0" />
             </button>
 
             {/* Profile Dropdown Menu */}
             {menuOpen && (
-              <div className="absolute left-4 right-4 bottom-[-135px] bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl p-1.5 z-50 backdrop-blur-md">
+              <div className="absolute left-4 right-4 bottom-[-135px] bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-1.5 z-50">
                 <button
                   onClick={handleOpenEdit}
-                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-[#374151] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
                 >
-                  <User className="h-4 w-4 text-emerald-400" />
+                  <User className="h-4 w-4 text-[#0F6FE8]" />
                   <span>Edit Profile</span>
                 </button>
                 <button
@@ -154,17 +157,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     setMenuOpen(false);
                     setIsDeleteOpen(true);
                   }}
-                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm text-slate-300 hover:text-red-400 hover:bg-red-500/5 transition-all"
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-[#374151] hover:text-[#991B1B] hover:bg-[#FEF2F2] transition-all"
                 >
-                  <Trash2 className="h-4 w-4 text-red-400" />
+                  <Trash2 className="h-4 w-4 text-[#DC2626]" />
                   <span>Delete Account</span>
                 </button>
-                <div className="h-[1px] bg-slate-800/60 my-1"></div>
+                <div className="h-px bg-[#E5E7EB] my-1"></div>
                 <button
                   onClick={logout}
-                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all"
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-all"
                 >
-                  <LogOut className="h-4 w-4 text-slate-500" />
+                  <LogOut className="h-4 w-4 text-[#9CA3AF]" />
                   <span>Logout</span>
                 </button>
               </div>
@@ -182,8 +185,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
+                      ? 'bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8]'
+                      : 'text-[#4B5563] hover:text-[#111827] hover:bg-[#F3F4F6] border border-transparent'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -194,21 +197,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         </div>
 
-        {/* Footer info instead of redundant logout button */}
-        <div className="p-4 border-t border-slate-900 text-center">
-          <span className="text-[10px] text-slate-600">Click Profile Above for Settings</span>
+        {/* Footer info */}
+        <div className="p-4 border-t border-[#E5E7EB] text-center">
+          <span className="text-[10px] text-[#9CA3AF]">Click Profile Above for Settings</span>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-16 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="text-lg font-bold text-white">
+        <header className="h-16 border-b border-[#E5E7EB] bg-white flex items-center justify-between px-8 sticky top-0 z-40 shadow-sm">
+          <h1 className="text-lg font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>
             {pathname === '/dashboard' ? 'Business Dashboard' : pathname.includes('/submit') ? 'Submit Surplus' : 'Deal Details'}
           </h1>
           <div className="flex items-center space-x-4">
-            <span className="text-xs text-slate-500">Local Dev System</span>
+            <span className="text-xs text-[#9CA3AF]">Local Dev System</span>
           </div>
         </header>
 
@@ -218,52 +221,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* EDIT PROFILE MODAL */}
       {isEditOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-md w-full relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E7EB] p-8 rounded-2xl max-w-md w-full relative shadow-xl">
             <button
               onClick={() => setIsEditOpen(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute top-4 right-4 text-[#9CA3AF] hover:text-[#374151] transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className="text-xl font-bold text-white mb-2">Edit Business Profile</h2>
-            <p className="text-sm text-slate-400 mb-6">Update your business details below.</p>
+            <h2 className="text-xl font-bold text-[#111827] mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Edit Business Profile</h2>
+            <p className="text-sm text-[#6B7280] mb-6">Update your business details below.</p>
 
             {actionError && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl p-3">
+              <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs rounded-xl p-3">
                 {actionError}
               </div>
             )}
 
             {actionLoading && (
               <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
               </div>
             )}
 
             {!actionLoading && (
               <form onSubmit={handleSaveEdit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Business Name
-                  </label>
+                  <label className={labelCls}>Business Name</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm transition-all outline-none"
+                    className={inputCls}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Business Type
-                  </label>
+                  <label className={labelCls}>Business Type</label>
                   <select
                     value={editType}
                     onChange={(e) => setEditType(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm transition-all outline-none text-slate-300"
+                    className={`${inputCls} text-[#111827]`}
                   >
                     <option value="restaurant">Restaurant / Café</option>
                     <option value="brewery">Brewery / Distillery</option>
@@ -275,42 +274,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Phone Number
-                  </label>
+                  <label className={labelCls}>Phone Number</label>
                   <input
                     type="text"
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm transition-all outline-none"
+                    className={inputCls}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Address
-                  </label>
+                  <label className={labelCls}>Address</label>
                   <input
                     type="text"
                     value={editAddress}
                     onChange={(e) => setEditAddress(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm transition-all outline-none"
+                    className={inputCls}
                     required
                   />
                 </div>
 
-                <div className="flex space-x-3 pt-4 border-t border-slate-800/60 mt-6">
+                <div className="flex space-x-3 pt-4 border-t border-[#E5E7EB] mt-6">
                   <button
                     type="button"
                     onClick={() => setIsEditOpen(false)}
-                    className="flex-1 bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-xl py-2.5 text-sm font-semibold transition-all border border-slate-800"
+                    className="flex-1 bg-white hover:bg-[#F3F4F6] text-[#374151] rounded-xl py-2.5 text-sm font-semibold transition-all border border-[#E5E7EB]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10"
+                    className="flex-1 bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-2.5 text-sm font-semibold transition-all shadow-sm"
                   >
                     Save Changes
                   </button>
@@ -323,21 +318,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* DELETE ACCOUNT MODAL */}
       {isDeleteOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-md w-full relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E7EB] p-8 rounded-2xl max-w-md w-full relative shadow-xl">
             <button
               onClick={() => setIsDeleteOpen(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute top-4 right-4 text-[#9CA3AF] hover:text-[#374151] transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className="text-xl font-bold text-red-500 mb-2">Delete Account?</h2>
-            <p className="text-sm text-slate-400 mb-6">
+            <h2 className="text-xl font-bold text-[#991B1B] mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Delete Account?</h2>
+            <p className="text-sm text-[#4B5563] mb-6">
               Are you absolutely sure? This will permanently delete your account and all associated submissions, matches, and certificates. This action cannot be undone.
             </p>
 
             {actionError && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl p-3">
+              <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs rounded-xl p-3">
                 {actionError}
               </div>
             )}
@@ -346,7 +341,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 type="button"
                 onClick={() => setIsDeleteOpen(false)}
-                className="flex-1 bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-xl py-2.5 text-sm font-semibold transition-all border border-slate-800"
+                className="flex-1 bg-white hover:bg-[#F3F4F6] text-[#374151] rounded-xl py-2.5 text-sm font-semibold transition-all border border-[#E5E7EB]"
                 disabled={actionLoading}
               >
                 Cancel
@@ -354,7 +349,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 type="button"
                 onClick={handleDeleteAccount}
-                className="flex-1 bg-red-650 hover:bg-red-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-all shadow-lg shadow-red-500/10 flex justify-center items-center"
+                className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl py-2.5 text-sm font-semibold transition-all shadow-sm flex justify-center items-center"
                 disabled={actionLoading}
               >
                 {actionLoading ? (
@@ -370,4 +365,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-

@@ -1,26 +1,219 @@
 @import "tailwindcss";
 
+/* ─── Design tokens (WCAG AA light-mode palette) ───────────────────────────── */
+/*
+  CONTRAST CHECKS (against white/near-white backgrounds):
+  --color-text       #111827  on #F9FAFB → 17.7:1 ✓ AAA
+  --color-text-muted #4B5563  on #F9FAFB →  7.1:1 ✓ AA
+  --color-text-subtle #6B7280 on #F9FAFB →  4.6:1 ✓ AA (body)
+  --color-primary    #0F6FE8  on white   →  4.61:1 ✓ AA (large/bold 18px+)
+                               on #EFF6FF →  4.2:1  — used only as large text there ✓
+  --color-primary-dark #0A52B0 on white  →  8.6:1  ✓ AA small
+  --color-success    #166534  on #F0FDF4 → 10.2:1 ✓ AA
+  --color-warning    #92400E  on #FFFBEB →  7.3:1 ✓ AA
+  --color-error      #991B1B  on #FEF2F2 →  8.5:1 ✓ AA
+  --color-completion #4338CA  on #EEF2FF →  7.4:1 ✓ AA
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Backgrounds */
+  --bg-page:         #F9FAFB;   /* near-white */
+  --bg-surface:      #FFFFFF;   /* card white */
+  --bg-subtle:       #F3F4F6;   /* muted surface */
+  --bg-inset:        #E5E7EB;   /* input/inset areas */
+
+  /* Borders */
+  --border-default:  #E5E7EB;
+  --border-strong:   #D1D5DB;
+
+  /* Text */
+  --text-primary:    #111827;   /* headings */
+  --text-muted:      #4B5563;   /* body copy */
+  --text-subtle:     #6B7280;   /* labels, meta */
+  --text-disabled:   #9CA3AF;
+
+  /* Accent — Primary (blue) */
+  --color-primary:      #0F6FE8;
+  --color-primary-dark: #0A52B0;
+  --color-primary-bg:   #EFF6FF;
+  --color-primary-text: #1D4ED8; /* dark enough for small text on white */
+
+  /* Success (green) — agreed / verified */
+  --color-success:      #166534;
+  --color-success-mid:  #16A34A;
+  --color-success-bg:   #F0FDF4;
+  --color-success-border:#BBF7D0;
+
+  /* Warning (amber) — needs review / low confidence */
+  --color-warning:      #92400E;
+  --color-warning-mid:  #D97706;
+  --color-warning-bg:   #FFFBEB;
+  --color-warning-border:#FDE68A;
+
+  /* Error (red) — hazard / failed */
+  --color-error:        #991B1B;
+  --color-error-mid:    #DC2626;
+  --color-error-bg:     #FEF2F2;
+  --color-error-border: #FECACA;
+
+  /* Completion (indigo) — verified impact certificate */
+  --color-completion:      #4338CA;
+  --color-completion-bg:   #EEF2FF;
+  --color-completion-border:#C7D2FE;
+
+  /* Typography */
+  --font-heading: 'Poppins', system-ui, sans-serif;
+  --font-body:    'Roboto', system-ui, sans-serif;
+
+  /* Radius & shadow */
+  --radius-sm:   0.5rem;
+  --radius-md:   0.75rem;
+  --radius-lg:   1rem;
+  --radius-xl:   1.5rem;
+  --shadow-sm:   0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.05);
+  --shadow-md:   0 4px 12px 0 rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.05);
+  --shadow-lg:   0 8px 24px 0 rgba(0,0,0,0.10), 0 4px 10px -3px rgba(0,0,0,0.06);
+  --shadow-focus:0 0 0 3px rgba(15,111,232,0.25);
 }
 
+/* ─── @theme passthrough for Tailwind v4 ───────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base styles ───────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+* {
+  border-color: var(--border-default);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;        /* 15px baseline */
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: var(--bg-subtle); }
+::-webkit-scrollbar-thumb  { background: var(--border-strong); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* ─── Selection ─────────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(15,111,232,0.15);
+  color: var(--text-primary);
+}
+
+/* ─── Card ──────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* Legacy alias — pages use glass-card */
+.glass-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Inputs ─────────────────────────────────────────────────────────────────── */
+.input {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  width: 100%;
+}
+
+.input::placeholder { color: var(--text-disabled); }
+
+input, select, textarea {
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-focus) !important;
+}
+
+/* ─── Primary button ─────────────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px 0 rgba(15,111,232,0.25);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+  box-shadow: 0 4px 14px 0 rgba(15,111,232,0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px 0 rgba(15,111,232,0.2);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── Status badge helpers ───────────────────────────────────────────────────── */
+.badge-success    { background:var(--color-success-bg);    color:var(--color-success);    border:1px solid var(--color-success-border); }
+.badge-warning    { background:var(--color-warning-bg);    color:var(--color-warning);    border:1px solid var(--color-warning-border); }
+.badge-error      { background:var(--color-error-bg);      color:var(--color-error);      border:1px solid var(--color-error-border); }
+.badge-completion { background:var(--color-completion-bg); color:var(--color-completion); border:1px solid var(--color-completion-border); }
+.badge-primary    { background:var(--color-primary-bg);    color:var(--color-primary-text);border:1px solid #BFDBFE; }

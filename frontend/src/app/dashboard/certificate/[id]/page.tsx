@@ -45,18 +45,18 @@ export default function CertificatePrintPage({ params }: { params: Promise<{ id:
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-slate-950 text-white space-y-4">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
-        <p className="text-sm font-semibold tracking-wide text-slate-400">Preparing Certificate PDF...</p>
+      <div className="flex flex-col justify-center items-center h-screen bg-[#F9FAFB] text-[#111827] space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-[#0F6FE8]" />
+        <p className="text-sm font-semibold tracking-wide text-[#6B7280]">Preparing Certificate PDF...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-slate-950 text-white p-6 text-center space-y-4">
-        <p className="text-red-400 font-bold">Error loading certificate</p>
-        <p className="text-slate-400 text-xs max-w-md">{error || 'Certificate could not be loaded.'}</p>
+      <div className="flex flex-col justify-center items-center h-screen bg-[#F9FAFB] p-6 text-center space-y-4">
+        <p className="text-[#991B1B] font-bold">Error loading certificate</p>
+        <p className="text-[#4B5563] text-xs max-w-md">{error || 'Certificate could not be loaded.'}</p>
       </div>
     );
   }

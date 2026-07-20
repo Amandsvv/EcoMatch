@@ -159,6 +159,16 @@ class TestAlchemistAgent:
             sourceBusinessLocation={"lat": 40.715, "lng": -74.008},
             sourceBusinessType="restaurant",
             sourceBusinessId="business-source-1",
+            candidates=[
+                {
+                    "id": "00000000-0000-0000-0000-000000000001",
+                    "name": "Local Compost Operations",
+                    "type": "compost_operation",
+                    "lat": 40.715, "lng": -74.008,
+                    "estimated_volume_capacity": 100,
+                    "estimated_cost": 50,
+                }
+            ],
         )
         
         response = await alchemist_agent.match(request)
@@ -174,6 +184,23 @@ class TestAlchemistAgent:
         # This would require mocking a scenario where confidence < 0.7
         # Phase 1a: simple pass
         assert True
+
+    @pytest.mark.asyncio
+    async def test_match_empty_candidates_returns_no_candidates(self):
+        """Match with empty candidates list returns noCandidatesInRadius = True."""
+        request = MatchRequest(
+            classification={
+                "primaryCategory": "organic_biomass",
+                "confidence": 0.95,
+                "hazardFlag": False,
+            },
+            sourceBusinessLocation={"lat": 40.715, "lng": -74.008},
+            sourceBusinessType="restaurant",
+            sourceBusinessId="business-source-1",
+            candidates=[],
+        )
+        response = await alchemist_agent.match(request)
+        assert response.noCandidatesInRadius is True
 
 
 class TestNegotiatorAgent:
@@ -295,6 +322,16 @@ class TestAgentPipeline:
             sourceBusinessLocation={"lat": 40.715, "lng": -74.008},
             sourceBusinessType="restaurant",
             sourceBusinessId="e2e-source-1",
+            candidates=[
+                {
+                    "id": "00000000-0000-0000-0000-000000000001",
+                    "name": "Local Compost Operations",
+                    "type": "compost_operation",
+                    "lat": 40.715, "lng": -74.008,
+                    "estimated_volume_capacity": 100,
+                    "estimated_cost": 50,
+                }
+            ],
         )
         match_response = await alchemist_agent.match(match_request)
         

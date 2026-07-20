@@ -13,7 +13,6 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
-    "test-db": "node test-db.js",
     "db:seed": "tsx src/db/seed.ts"
   },
   "keywords": [],

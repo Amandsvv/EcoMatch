@@ -70,44 +70,7 @@ class AlchemistState(TypedDict):
     error: Optional[str]
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-#  Mock candidate database (Phase 1 stub — real DB query in ms1 integration)
-# ──────────────────────────────────────────────────────────────────────────────
-
-_CANDIDATE_BUSINESSES = [
-    {
-        "id": "00000000-0000-0000-0000-000000000001",
-        "name": "Local Compost Operations",
-        "type": "compost_operation",
-        "lat": 40.715, "lng": -74.008,
-        "estimated_volume_capacity": 100,
-        "estimated_cost": 50,
-    },
-    {
-        "id": "00000000-0000-0000-0000-000000000002",
-        "name": "Urban Mushroom Farm",
-        "type": "mushroom_farm",
-        "lat": 40.720, "lng": -74.005,
-        "estimated_volume_capacity": 50,
-        "estimated_cost": 60,
-    },
-    {
-        "id": "00000000-0000-0000-0000-000000000003",
-        "name": "Recycling Hub",
-        "type": "recycling_center",
-        "lat": 40.710, "lng": -74.015,
-        "estimated_volume_capacity": 200,
-        "estimated_cost": 30,
-    },
-    {
-        "id": "b6e4eaa6-0011-493a-9882-b4ab2d4356f6",
-        "name": "Mushroom Farm",
-        "type": "farm",
-        "lat": 28.1902, "lng": 77.0669,
-        "estimated_volume_capacity": 80,
-        "estimated_cost": 40,
-    },
-]
+# Candidates must be provided via the request candidates list.
 
 
 def _haversine_km(loc1: dict, loc2: dict) -> float:
@@ -164,10 +127,7 @@ def _node_discover_nearby_candidates(state: AlchemistState) -> dict:
     candidates = []
     source = state["source_location"]
 
-    # Use input candidates if provided, otherwise fall back to mock list
-    biz_list = state.get("candidates")
-    if not biz_list:
-        biz_list = _CANDIDATE_BUSINESSES
+    biz_list = state.get("candidates") or []
 
     for biz in biz_list:
         if biz["type"] not in state["compatible_types"]:
@@ -388,7 +348,7 @@ class AlchemistAgent:
             "confidence_threshold": self.confidence_threshold,
             # Intermediate / output defaults
             "compatible_types": [],
-            "candidates": request.candidates or [],
+            "candidates": request.candidates,
             "category_info": {},
             "market_price": 0.0,
             "llm_result": {},

@@ -32,7 +32,7 @@ class MatchRequest(BaseModel):
     sourceBusinessLocation: dict[str, float]  # {"lat": float, "lng": float}
     sourceBusinessType: str
     sourceBusinessId: str
-    candidates: Optional[list[dict[str, Any]]] = None
+    candidates: list[dict[str, Any]]
 
 
 class MatchResponse(BaseModel):

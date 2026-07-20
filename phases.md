@@ -8,7 +8,7 @@ Each phase has a goal, what's in scope, what's explicitly out, and an exit check
 
 ---
 
-## Phase 1a — Local Service Build (current phase)
+## Phase 1a — Local Service Build (complete)
 
 **Goal:** each of the three services (ms1, ms2, frontend) works correctly on its own, locally, in isolation.
 
@@ -20,13 +20,13 @@ Each phase has a goal, what's in scope, what's explicitly out, and an exit check
 **Out of scope:** AWS, CI/CD, NGINX, real SES sends, production Docker images, cross-service integration testing, any in-app counter-offer or chat mechanism.
 
 **Exit checklist:**
-- [ ] `docker compose up` in each service's own folder boots that service cleanly
-- [ ] Each service independently meets its Definition of Done (see local setup prompts)
-- [ ] No service depends on another actually running to pass its own local tests (mocks are fine)
+- [x] `docker compose up` in each service's own folder boots that service cleanly
+- [x] Each service independently meets its Definition of Done (see local setup prompts)
+- [x] No service depends on another actually running to pass its own local tests (mocks are fine)
 
 ---
 
-## Phase 1b — Local Integration
+## Phase 1b — Local Integration (complete)
 
 **Goal:** all three services work correctly *together*, locally.
 
@@ -39,16 +39,16 @@ Each phase has a goal, what's in scope, what's explicitly out, and an exit check
 **Out of scope:** AWS deployment, real SES sends, CI/CD pipelines, NGINX/HTTPS, counter-offer negotiation.
 
 **Exit checklist:**
-- [ ] One command boots the entire local stack
-- [ ] A hazardous submission provably never reaches a `match` row (integration test, not manual check)
-- [ ] A match with `matchConfidence < 0.7` provably never produces a persisted `matches` row and is never shown to either business (integration test, not manual check)
-- [ ] A full submission-to-certificate flow completes locally with real inter-service calls
-- [ ] A match cannot reach `both_accepted` unless each business's own logged-in user independently accepted their own `outreach_draft` row — tested, not assumed; no admin can accept on a business's behalf
-- [ ] No ms1 endpoint ever returns the counterpart business's `phone`/`address` to the other business — tested, not assumed
+- [x] One command boots the entire local stack
+- [x] A hazardous submission provably never reaches a `match` row (integration test, not manual check)
+- [x] A match with `matchConfidence < 0.7` provably never produces a persisted `matches` row and is never shown to either business (integration test, not manual check)
+- [x] A full submission-to-certificate flow completes locally with real inter-service calls
+- [x] A match cannot reach `both_accepted` unless each business's own logged-in user independently accepted their own `outreach_draft` row — tested, not assumed; no admin can accept on a business's behalf
+- [x] No ms1 endpoint ever returns the counterpart business's `phone`/`address` to the other business — tested, not assumed
 
 ---
 
-## Phase 1c — Production Infrastructure
+## Phase 1c — Production Infrastructure (current phase)
 
 **Goal:** the Phase 1b stack runs in a real, reachable, secure environment.
 

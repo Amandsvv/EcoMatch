@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Recycle, ArrowRight, Loader2, AlertCircle, MapPin } from 'lucide-react';
+import { Recycle, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Signup() {
@@ -47,25 +47,25 @@ export default function Signup() {
     }
   };
 
+  const inputCls = "w-full bg-white border border-[#D1D5DB] focus:border-[#0F6FE8] rounded-xl px-4 py-2.5 text-sm text-[#111827] placeholder-[#9CA3AF] transition-all outline-none";
+  const labelCls = "block text-xs font-semibold text-[#374151] uppercase tracking-wider mb-1.5";
+
   return (
-    <div className="flex-1 flex flex-col justify-center items-center bg-slate-950 text-slate-100 min-h-screen py-12 px-4">
-      <div className="w-full max-w-lg bg-slate-900/60 border border-slate-900 p-8 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden">
-        
-        {/* Top Glow Accent */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-[1px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div>
-        
+    <div className="flex-1 flex flex-col justify-center items-center bg-[#F9FAFB] min-h-screen py-12 px-4">
+      <div className="w-full max-w-lg bg-white border border-[#E5E7EB] p-8 rounded-2xl shadow-md">
+
         {/* Brand */}
         <div className="flex flex-col items-center mb-6">
-          <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20 mb-3">
-            <Recycle className="h-8 w-8 text-emerald-400" />
+          <div className="bg-[#EFF6FF] p-3 rounded-2xl border border-[#BFDBFE] mb-3">
+            <Recycle className="h-8 w-8 text-[#0F6FE8]" />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Create Business Profile</h2>
-          <p className="text-sm text-slate-400 mt-1">Get started with industrial symbiosis matching</p>
+          <h2 className="text-2xl font-bold tracking-tight text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Create Business Profile</h2>
+          <p className="text-sm text-[#6B7280] mt-1">Get started with industrial symbiosis matching</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start space-x-3 text-red-400 text-sm">
+          <div className="mb-6 bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-start space-x-3 text-[#991B1B] text-sm">
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -75,30 +75,26 @@ export default function Signup() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Email Address
-              </label>
+              <label className={labelCls}>Email Address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                className={inputCls}
                 disabled={loading}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Password
-              </label>
+              <label className={labelCls}>Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                className={inputCls}
                 disabled={loading}
                 required
               />
@@ -107,28 +103,24 @@ export default function Signup() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Business Name
-              </label>
+              <label className={labelCls}>Business Name</label>
               <input
                 type="text"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 placeholder="Green Brewery Inc"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                className={inputCls}
                 disabled={loading}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Business Type
-              </label>
+              <label className={labelCls}>Business Type</label>
               <select
                 value={businessType}
                 onChange={(e) => setBusinessType(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm transition-all outline-none text-slate-300"
+                className={`${inputCls} text-[#111827]`}
                 disabled={loading}
               >
                 <option value="restaurant">Restaurant / Café</option>
@@ -142,30 +134,26 @@ export default function Signup() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-              Phone Number
-            </label>
+            <label className={labelCls}>Phone Number</label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="555-0199"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+              className={inputCls}
               disabled={loading}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-              Street Address
-            </label>
+            <label className={labelCls}>Street Address</label>
             <input
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="123 Broadway"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+              className={inputCls}
               disabled={loading}
               required
             />
@@ -173,29 +161,25 @@ export default function Signup() {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Area / Locality
-              </label>
+              <label className={labelCls}>Area / Locality</label>
               <input
                 type="text"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
                 placeholder="Manhattan"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                className={inputCls}
                 disabled={loading}
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                State
-              </label>
+              <label className={labelCls}>State</label>
               <input
                 type="text"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 placeholder="NY"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+                className={inputCls}
                 disabled={loading}
                 required
               />
@@ -203,15 +187,13 @@ export default function Signup() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-              Pincode / ZIP Code
-            </label>
+            <label className={labelCls}>Pincode / ZIP Code</label>
             <input
               type="text"
               value={pincode}
               onChange={(e) => setPincode(e.target.value)}
               placeholder="10006"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 transition-all outline-none"
+              className={inputCls}
               disabled={loading}
               required
             />
@@ -220,7 +202,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group pt-3"
+            className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group pt-3"
           >
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -233,11 +215,10 @@ export default function Signup() {
           </button>
         </form>
 
-
         {/* Redirect */}
-        <div className="mt-6 text-center text-sm text-slate-400 border-t border-slate-900/60 pt-4">
+        <div className="mt-6 text-center text-sm text-[#6B7280] border-t border-[#E5E7EB] pt-4">
           Already have an account?{' '}
-          <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+          <Link href="/login" className="text-[#0F6FE8] hover:text-[#0A52B0] font-semibold transition-colors">
             Sign In
           </Link>
         </div>

@@ -6,74 +6,74 @@ Use this as your progress tracker while setting up the services.
 
 ## 📋 Prerequisites (5 min)
 
-- [ ] Node.js 20+ installed (`node --version`)
-- [ ] npm 10+ installed (`npm --version`)
-- [ ] Python 3.10+ installed (`python --version`)
-- [ ] Docker Desktop installed and running
-- [ ] Docker Compose available (`docker-compose --version`)
+- [x] Node.js 20+ installed (`node --version`)
+- [x] npm 10+ installed (`npm --version`)
+- [x] Python 3.10+ installed (`python --version`)
+- [x] Docker Desktop installed and running
+- [x] Docker Compose available (`docker-compose --version`)
 
 **Status: ⭕ Not Started | 🟡 In Progress | ✅ Complete**  
-Current: ⭕
+Current: ✅
 
 ---
 
 ## 🔧 Setup ms1-core-api (Express + PostgreSQL) — 20 min
 
 ### Step 1: Prepare Directory
-- [ ] Navigate: `cd d:\Project\EcoMatch\ms1-core-api`
-- [ ] Verify structure: See `src/`, `package.json`, `docker-compose.yml`
+- [x] Navigate: `cd d:\Project\EcoMatch\ms1-core-api`
+- [x] Verify structure: See `src/`, `package.json`, `docker-compose.yml`
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 2: Install Dependencies (3 min)
 ```powershell
 npm install
 ```
-- [ ] Command runs without errors
-- [ ] `node_modules/` folder created
-- [ ] "added X packages" message shown
+- [x] Command runs without errors
+- [x] `node_modules/` folder created
+- [x] "added X packages" message shown
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 3: Start Database (2 min)
 ```powershell
 docker-compose up -d
 ```
-- [ ] Docker container starts
-- [ ] PostgreSQL is healthy (check with `docker-compose ps`)
-- [ ] Database credentials: `ecomatch` / `ecomatch`
+- [x] Docker container starts
+- [x] PostgreSQL is healthy (check with `docker-compose ps`)
+- [x] Database credentials: `ecomatch` / `ecomatch`
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 4: Run Migrations (2 min)
 ```powershell
 npm run db:migrate
 ```
-- [ ] Command completes without errors
-- [ ] 11 database tables created
-- [ ] "migrations completed" message shown
+- [x] Command completes without errors
+- [x] 11 database tables created
+- [x] "migrations completed" message shown
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 5: Start Dev Server (1 min)
 ```powershell
 npm run dev
 ```
-- [ ] Server starts on port 4000
-- [ ] "Express server running on http://localhost:4000" message shown
-- [ ] Keep this terminal open (don't press Ctrl+C)
+- [x] Server starts on port 4000
+- [x] "Express server running on http://localhost:4000" message shown
+- [x] Keep this terminal open (don't press Ctrl+C)
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 6: Verify ms1 Works
 **In a NEW terminal:**
 ```powershell
 curl http://localhost:4000/health
 ```
-- [ ] Returns: `{"status":"ok","service":"ms1-core-api"}`
-- [ ] Status code: 200
+- [x] Returns: `{"status":"ok","service":"ms1-core-api"}`
+- [x] Status code: 200
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 7: Test Signup
 **In the same verification terminal:**
@@ -94,13 +94,13 @@ Invoke-WebRequest -Uri http://localhost:4000/auth/signup `
   -Headers @{"Content-Type"="application/json"} `
   -Body $body
 ```
-- [ ] Returns status 200 or 201
-- [ ] Response includes `token` field
-- [ ] Response includes `businessId` field
+- [x] Returns status 200 or 201
+- [x] Response includes `token` field
+- [x] Response includes `businessId` field
 
-**Status: ⭕**
+**Status: ✅**
 
-✅ **ms1 Complete Status:** ⭕
+✅ **ms1 Complete Status:** ✅
 
 ---
 
@@ -108,68 +108,68 @@ Invoke-WebRequest -Uri http://localhost:4000/auth/signup `
 
 ### Step 8: Prepare Directory
 **In a NEW terminal:**
-- [ ] Navigate: `cd d:\Project\EcoMatch\ms2-agent-service`
-- [ ] Verify structure: See `app/`, `run.py`, `requirements.txt`
+- [x] Navigate: `cd d:\Project\EcoMatch\ms2-agent-service`
+- [x] Verify structure: See `app/`, `run.py`, `requirements.txt`
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 9: Create Python Virtual Environment (1 min)
 ```powershell
 python -m venv venv
 ```
-- [ ] `venv/` folder created
-- [ ] Completes without errors
+- [x] `venv/` folder created
+- [x] Completes without errors
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 10: Activate Virtual Environment (immediate)
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
-- [ ] Prompt changes to `(venv) PS>`
-- [ ] Stays activated for all following commands in this terminal
+- [x] Prompt changes to `(venv) PS>`
+- [x] Stays activated for all following commands in this terminal
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 11: Install Python Dependencies (3 min)
 ```powershell
 pip install -r requirements.txt
 ```
-- [ ] Command runs without errors
-- [ ] "Successfully installed" message shown
-- [ ] All packages listed: fastapi, uvicorn, pydantic, langchain, etc.
+- [x] Command runs without errors
+- [x] "Successfully installed" message shown
+- [x] All packages listed: fastapi, uvicorn, pydantic, langchain, etc.
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 12: Start Dev Server (1 min)
 ```powershell
 python run.py
 ```
-- [ ] Server starts on port 8000
-- [ ] "Uvicorn running on http://0.0.0.0:8000" message shown
-- [ ] Keep this terminal open (don't press Ctrl+C)
+- [x] Server starts on port 8000
+- [x] "Uvicorn running on http://0.0.0.0:8000" message shown
+- [x] Keep this terminal open (don't press Ctrl+C)
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 13: Verify ms2 Works
 **In a NEW terminal:**
 ```powershell
 curl http://localhost:8000/health
 ```
-- [ ] Returns: `{"status":"ok","service":"ms2-agent-service"}`
-- [ ] Status code: 200
+- [x] Returns: `{"status":"ok","service":"ms2-agent-service"}`
+- [x] Status code: 200
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 14: Access API Documentation
 **In your browser:**
-- [ ] Visit: `http://localhost:8000/docs`
-- [ ] Page loads successfully
-- [ ] You see: `/classify`, `/match`, `/draft`, `/verify` endpoints listed
+- [x] Visit: `http://localhost:8000/docs`
+- [x] Page loads successfully
+- [x] You see: `/classify`, `/match`, `/draft`, `/verify` endpoints listed
 
-**Status: ⭕**
+**Status: ✅**
 
-✅ **ms2 Complete Status:** ⭕
+✅ **ms2 Complete Status:** ✅
 
 ---
 
@@ -177,10 +177,10 @@ curl http://localhost:8000/health
 
 ### Step 15: Verify Service Communication
 **In a NEW terminal:**
-- [ ] Both ms1 (terminal with `npm run dev`) and ms2 (terminal with `python run.py`) are still running
-- [ ] Both health checks respond (Ctrl+C to stop checks, services still running)
+- [x] Both ms1 (terminal with `npm run dev`) and ms2 (terminal with `python run.py`) are still running
+- [x] Both health checks respond (Ctrl+C to stop checks, services still running)
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 16: Test Full Submission Pipeline
 **Run this script in a NEW terminal:**
@@ -226,12 +226,12 @@ Write-Host "Category: $($subData.classification.primaryCategory)"
 Write-Host "Confidence: $($subData.classification.confidence)"
 ```
 
-- [ ] Submission returns status: `match_proposed` (or `needs_followup` if conf < 0.7)
-- [ ] Category: `organic_biomass`
-- [ ] Confidence: `> 0.7`
-- [ ] No errors in response
+- [x] Submission returns status: `match_proposed` (or `needs_followup` if conf < 0.7)
+- [x] Category: `organic_biomass`
+- [x] Confidence: `> 0.7`
+- [x] No errors in response
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 17: Check Match Details
 **Continuing in same terminal:**
@@ -249,13 +249,13 @@ Write-Host "Target Business ID: $($matchData.targetBusinessId)"
 Write-Host "Has Rationale: $(-not [string]::IsNullOrEmpty($matchData.matchRationale))"
 ```
 
-- [ ] Match confidence: `>= 0.7`
-- [ ] Target business ID: Not null
-- [ ] Rationale: Present (not empty)
+- [x] Match confidence: `>= 0.7`
+- [x] Target business ID: Not null
+- [x] Rationale: Present (not empty)
 
-**Status: ⭕**
+**Status: ✅**
 
-✅ **Integration Complete Status:** ⭕
+✅ **Integration Complete Status:** ✅
 
 ---
 
@@ -269,11 +269,11 @@ cd d:\Project\EcoMatch\ms1-core-api
 npm test
 ```
 
-- [ ] All tests pass
-- [ ] Output shows: "Tests: X passed, X total"
-- [ ] No failures
+- [x] All tests pass
+- [x] Output shows: "Tests: X passed, X total"
+- [x] No failures
 
-**Status: ⭕**
+**Status: ✅**
 
 ### Step 19: Test ms2
 **In a NEW terminal:**
@@ -284,13 +284,13 @@ cd d:\Project\EcoMatch\ms2-agent-service
 pytest -v
 ```
 
-- [ ] All tests pass
-- [ ] Output shows: "X passed"
-- [ ] No failures
+- [x] All tests pass
+- [x] Output shows: "X passed"
+- [x] No failures
 
-**Status: ⭕**
+**Status: ✅**
 
-✅ **Tests Complete Status:** ⭕
+✅ **Tests Complete Status:** ✅
 
 ---
 
@@ -298,24 +298,24 @@ pytest -v
 
 ### All Services Running?
 
-- [ ] ms1-core-api:
+- [x] ms1-core-api:
   - Running: `http://localhost:4000`
   - Health: ✅
   - Can signup: ✅
   - Can submit material: ✅
 
-- [ ] ms2-agent-service:
+- [x] ms2-agent-service:
   - Running: `http://localhost:8000`
   - Health: ✅
   - Docs available: ✅
   - Responds to requests: ✅
 
-- [ ] PostgreSQL:
+- [x] PostgreSQL:
   - Running: `docker-compose ps`
   - Healthy: ✅
   - Schema created: ✅
 
-- [ ] Integration:
+- [x] Integration:
   - ms1 calls ms2: ✅
   - Classification works: ✅
   - Matching works: ✅
@@ -323,8 +323,8 @@ pytest -v
 
 ### All Tests Passing?
 
-- [ ] ms1 tests: ✅ (8 tests)
-- [ ] ms2 tests: ✅ (9 tests)
+- [x] ms1 tests: ✅ (4 tests)
+- [x] ms2 tests: ✅ (9 tests)
 
 ---
 
