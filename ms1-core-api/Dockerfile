@@ -23,7 +23,8 @@ RUN npm ci --omit=dev
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/migrations ./migrations
 COPY --from=builder --chown=node:node /app/run-migration.js ./run-migration.js
-
+RUN mkdir -p /app/logs \
+    && chown -R node:node /app/logs
 USER node
 
 EXPOSE 4000
