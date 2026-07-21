@@ -22,6 +22,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+import { SubmitSurplusSchema } from '@/lib/validation';
+
 export default function SubmitSurplus() {
   const { user } = useAuth();
   const router = useRouter();
@@ -122,8 +124,14 @@ export default function SubmitSurplus() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !cost || !frequency) {
-      setError('Please fill in all required fields');
+    const validation = SubmitSurplusSchema.safeParse({
+      description,
+      cost,
+      frequency,
+    });
+
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || 'Please fill in all required fields correctly');
       return;
     }
 

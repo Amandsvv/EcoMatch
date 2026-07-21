@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Recycle, ArrowRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+import { LoginSchema } from '@/lib/validation';
+
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -42,8 +44,9 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    const validation = LoginSchema.safeParse({ email, password });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || 'Please fill in all fields correctly');
       return;
     }
 

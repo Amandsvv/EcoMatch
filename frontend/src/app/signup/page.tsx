@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Recycle, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+import { SignupSchema } from '@/lib/validation';
+
 export default function Signup() {
   const { signup } = useAuth();
   const [email, setEmail] = useState('');
@@ -22,25 +24,28 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !businessName || !address || !area || !state || !pincode || !phone) {
-      setError('Please fill in all fields');
+    const payload = {
+      email,
+      password,
+      businessName,
+      businessType,
+      address,
+      area,
+      state,
+      pincode,
+      phone,
+    };
+
+    const validation = SignupSchema.safeParse(payload);
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || 'Please fill in all fields correctly');
       return;
     }
 
     setError(null);
     setLoading(true);
     try {
-      await signup({
-        email,
-        password,
-        businessName,
-        businessType,
-        address,
-        area,
-        state,
-        pincode,
-        phone,
-      });
+      await signup(payload);
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check inputs.');
       setLoading(false);
