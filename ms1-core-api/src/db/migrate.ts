@@ -11,7 +11,7 @@ async function main() {
   });
 
   const db = drizzle(pool);
-
+  
   console.log("Running database migrations...");
 
   await migrate(db, {

@@ -12,6 +12,16 @@ export class CertificatesRepository {
     return result[0] || null;
   }
 
+  async getMatchBySubmissionId(submissionId: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.matches)
+      .where(eq(schema.matches.submissionId, submissionId))
+      .limit(1);
+    return result[0] || null;
+  }
+
   async getVerificationRecords(matchId: string) {
     const db = getDb();
     return db

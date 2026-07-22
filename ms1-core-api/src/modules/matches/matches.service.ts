@@ -22,14 +22,18 @@ export class MatchesService {
   }
 
   async getMatchDetails(matchId: string) {
-    const match = await this.repository.getMatchById(matchId);
+    let match = await this.repository.getMatchById(matchId);
+    if (!match) {
+      match = await this.repository.getMatchBySubmissionId(matchId);
+    }
     if (!match) {
       throw new AppError(ErrorCodes.MATCH_NOT_FOUND, 404, 'Match not found');
     }
+    const realMatchId = match.id;
 
-    const outreachDrafts = await this.repository.getOutreachDraftsByMatchId(matchId);
-    const dealEvents = await this.repository.getDealEventsByMatchId(matchId);
-    const logisticsBooking = await this.repository.getLogisticsBookingByMatchId(matchId);
+    const outreachDrafts = await this.repository.getOutreachDraftsByMatchId(realMatchId);
+    const dealEvents = await this.repository.getDealEventsByMatchId(realMatchId);
+    const logisticsBooking = await this.repository.getLogisticsBookingByMatchId(realMatchId);
 
     // Enrich with business names for display purposes
     const sourceBusiness = await this.repository.getBusinessById(match.sourceBusinessId);
@@ -105,6 +109,9 @@ export class MatchesService {
       throw new AppError(ErrorCodes.SUBMISSION_NOT_FOUND, 404, 'Classification not found');
     }
 
+    // Load submission to get exact user submitted price and frequency
+    const submission = await this.repository.getSubmissionById(match.submissionId);
+
     // Call Negotiator Agent to draft proposals
     const ms2Client = new MS2Client(process.env.MS2_BASE_URL);
     let draftResult;
@@ -113,8 +120,12 @@ export class MatchesService {
         match: {
           sourceBusinessId: match.sourceBusinessId,
           targetBusinessId: match.targetBusinessId,
+          disposalCostPerUnit: submission?.disposalCostPerUnit ? Number(submission.disposalCostPerUnit) : undefined,
+          disposalFrequency: submission?.disposalFrequency || undefined,
           estimatedSourceSavings: match.estimatedSourceSavings || 0,
           estimatedTargetSavingsPct: match.estimatedTargetSavingsPct || 0,
+          rawDescription: submission?.rawDescription || undefined,
+          matchRationale: match.matchRationale || undefined,
           classification: {
             primaryCategory: classification.primaryCategory,
             subtype: classification.subtype || undefined,

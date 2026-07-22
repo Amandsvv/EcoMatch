@@ -82,22 +82,21 @@ async def _node_llm_full_classify(state: ScoutState) -> dict:
     }
 
     system_prompt = (
-        "You are EcoMatch's Scout Agent. Analyze the business waste submission "
-        "and make ALL decisions below in a single JSON response.\n\n"
+        "You are EcoMatch's Scout Agent. Analyze the EXACT business waste submission "
+        "provided in 'description'. Make ALL decisions below in a single JSON response.\n\n"
         "ALLOWED CATEGORIES (use exact key names):\n"
         + "\n".join(f"  - {k}: {v}" for k, v in categories.items())
         + "\n\n"
         "RULES:\n"
-        "1. primaryCategory — choose one key above, or 'unknown' if none match.\n"
-        "2. subtype — short descriptor (e.g. 'spent grain') or null.\n"
-        "3. estimatedComposition — for organic only: {nitrogen_percent, carbon_percent, "
-        "moisture_percent}; null for all other categories.\n"
+        "1. primaryCategory — choose one key above matching the submitted waste, or 'unknown' if none match.\n"
+        "2. subtype — short accurate descriptor derived directly from the submitted description (e.g. 'spent yeast', 'cardboard boxes', 'wood sawdust', 'coffee grounds') — extract the specific material name from the user description.\n"
+        "3. estimatedComposition — for organic biomass only: estimate realistic composition based on the submitted material {nitrogen_percent, carbon_percent, moisture_percent}; null for all non-organic categories.\n"
         "4. confidence — calibrated float 0.0–1.0 reflecting classification certainty.\n"
         "5. hazardFlag — true if toxic/chemical/medical/radioactive/contaminated/unknown; "
         "fail-safe not fail-open: when in doubt, flag it.\n"
         "6. needsFollowup — true ONLY if confidence < 0.7 AND no prior followup yet.\n"
         "7. followupQuestion — one specific question if needsFollowup, else null.\n"
-        "Be decisive. Uncertainty → hazardFlag=true."
+        "Be decisive. Base ALL outputs on the user's actual submitted description."
     )
 
     try:

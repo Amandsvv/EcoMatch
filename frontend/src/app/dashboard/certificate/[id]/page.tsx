@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from 'react';
 import { api } from '@/lib/api';
 import { Loader2, Award, Recycle, DollarSign } from 'lucide-react';
 
-export default function CertificatePrintPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ImpactCertificatePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const matchId = resolvedParams.id;
 
@@ -33,21 +33,11 @@ export default function CertificatePrintPage({ params }: { params: Promise<{ id:
     loadData();
   }, [matchId]);
 
-  useEffect(() => {
-    if (data) {
-      // Auto trigger print dialog once loaded
-      const timer = setTimeout(() => {
-        window.print();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [data]);
-
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#F9FAFB] text-[#111827] space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-[#0F6FE8]" />
-        <p className="text-sm font-semibold tracking-wide text-[#6B7280]">Preparing Certificate PDF...</p>
+        <p className="text-sm font-semibold tracking-wide text-[#6B7280]">Loading Certificate Details...</p>
       </div>
     );
   }
@@ -64,8 +54,25 @@ export default function CertificatePrintPage({ params }: { params: Promise<{ id:
   const { certificate, match } = data;
 
   return (
-    <div className="min-h-screen bg-white text-slate-950 p-12 flex justify-center items-center print:p-0">
-      <div className="border-8 border-emerald-800 p-8 w-full max-w-4xl relative overflow-hidden bg-slate-50 shadow-2xl rounded-2xl flex flex-col justify-between min-h-[600px] print:shadow-none print:border-4 print:bg-white print:rounded-none">
+    <div className="min-h-screen bg-white text-slate-950 p-4 md:p-8 flex flex-col justify-center items-center print:p-0 print:m-0">
+      {/* Top Action Controls (Hidden in Print) */}
+      <div className="w-full max-w-4xl mb-6 flex items-center justify-between print:hidden">
+        <button
+          onClick={() => window.location.href = '/dashboard'}
+          className="px-4 py-2 text-xs font-semibold rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="px-5 py-2 text-xs font-bold rounded-md bg-emerald-800 hover:bg-emerald-900 text-white transition-colors flex items-center gap-2 shadow-sm"
+        >
+          <Award className="h-4 w-4" />
+          <span>Download / Print PDF Certificate</span>
+        </button>
+      </div>
+
+      <div className="border-8 border-emerald-800 p-6 md:p-8 w-full max-w-4xl relative overflow-hidden bg-slate-50 shadow-2xl rounded-2xl flex flex-col justify-between min-h-[580px] print:shadow-none print:border-4 print:bg-white print:rounded-none print:w-full print:max-w-none print:m-0 print:p-6">
         {/* Decorative corner borders */}
         <div className="absolute top-4 left-4 right-4 bottom-4 border-2 border-emerald-800/10 pointer-events-none"></div>
 

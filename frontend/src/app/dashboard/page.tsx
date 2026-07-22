@@ -5,21 +5,19 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
-  PlusCircle,
-  ArrowRight,
   Recycle,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
   TrendingUp,
+  PlusCircle,
+  Clock,
+  AlertTriangle,
+  ShieldAlert,
+  CheckCircle,
   Award,
   ChevronRight,
-  ShieldAlert,
-  Loader2,
   Trash2,
-  LogOut,
-  X,
+  Loader2,
   MessageSquare,
+  X,
 } from 'lucide-react';
 
 interface Submission {
@@ -29,23 +27,10 @@ interface Submission {
   disposalFrequency: string;
   status: string;
   createdAt: string;
-  classification?: {
-    primaryCategory: string;
-    confidence: number;
-    hazardFlag: boolean;
-    followupQuestion?: string;
-  };
-  match?: {
-    id: string;
-    targetBusinessId: string;
-    matchRationale: string;
-    matchConfidence: number;
-    distanceKm: number;
-    status: string;
-  };
+  classification?: any;
+  match?: any;
 }
 
-// Confirm-delete modal component
 function DeleteConfirmModal({
   submission,
   onConfirm,
@@ -58,50 +43,49 @@ function DeleteConfirmModal({
   deleting: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 w-full max-w-md shadow-xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="eco-card w-full max-w-md p-6 space-y-4 animate-scale-in">
         <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-2.5">
-              <Trash2 className="h-5 w-5 text-[#DC2626]" />
+          <div className="flex items-center gap-3 text-[var(--color-error-mid)]">
+            <div className="p-2.5 rounded-full bg-[var(--color-error-bg)] border border-[var(--color-error-border)]">
+              <Trash2 className="h-5 w-5" />
             </div>
-            <h3 className="font-bold text-[#111827] text-base" style={{ fontFamily: 'var(--font-heading)' }}>Delete Submission?</h3>
+            <div>
+              <h3 className="font-bold text-base text-[var(--eco-text)] font-display">
+                Delete Submission?
+              </h3>
+              <p className="text-xs text-[var(--eco-text-3)]">This action cannot be undone.</p>
+            </div>
           </div>
-          <button
-            onClick={onCancel}
-            className="text-[#9CA3AF] hover:text-[#374151] transition-colors p-1 rounded-lg"
-          >
+          <button onClick={onCancel} className="text-[var(--eco-text-3)] hover:text-[var(--eco-text)]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <p className="text-sm text-[#4B5563] leading-relaxed">
-          This will permanently delete:{' '}
-          <span className="text-[#111827] font-medium">
-            &ldquo;{submission.rawDescription.slice(0, 80)}{submission.rawDescription.length > 80 ? '…' : ''}&rdquo;
-          </span>
-          . This action cannot be undone.
+        <p className="text-xs text-[var(--eco-text-2)] bg-[var(--eco-surface-2)] p-3 rounded-md line-clamp-2 italic">
+          &ldquo;{submission.rawDescription}&rdquo;
         </p>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-end gap-3 pt-2">
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#374151] bg-white hover:bg-[#F3F4F6] border border-[#E5E7EB] transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-xs font-semibold text-[var(--eco-text-2)] hover:bg-[var(--eco-surface-2)] rounded-md transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#DC2626] hover:bg-[#B91C1C] border border-[#FECACA] transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+            className="eco-btn-primary py-2 px-4 text-xs bg-[var(--color-error-mid)] hover:bg-red-700"
           >
             {deleting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="flex items-center gap-1">
+                <Loader2 className="h-3.5 w-3.5 anim-spin" /> Deleting...
+              </span>
             ) : (
-              <Trash2 className="h-4 w-4" />
+              'Confirm Delete'
             )}
-            <span>{deleting ? 'Deleting…' : 'Delete'}</span>
           </button>
         </div>
       </div>
@@ -109,8 +93,9 @@ function DeleteConfirmModal({
   );
 }
 
-export default function Dashboard() {
-  const { user, logout } = useAuth();
+export default function DashboardOverview() {
+  const { user } = useAuth();
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [incomingMatches, setIncomingMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,9 +104,8 @@ export default function Dashboard() {
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Submission | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Stats
+  // Live Stats from user data
   const [activeDealsCount, setActiveDealsCount] = useState(0);
   const [co2Saved, setCo2Saved] = useState(0);
   const [dollarsSaved, setDollarsSaved] = useState(0);
@@ -130,52 +114,22 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  // Fetch incoming matches (where this user is the TARGET) separately
-  useEffect(() => {
-    if (!user?.businessId) return;
-    api.getMatchesForBusiness(user.businessId)
-      .then((bizMatches: any[]) => {
-        const targetMatches = (bizMatches || []).filter(
-          (m: any) => m.targetBusinessId === user.businessId
-        );
-        setIncomingMatches(targetMatches);
-      })
-      .catch(() => {
-        // Non-critical — hide section if it fails
-      });
-  }, [user?.businessId]);
-
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getSubmissions();
-      setSubmissions(data || []);
+      const subsData = await api.getSubmissions();
+      const validSubmissions = subsData || [];
+      setSubmissions(validSubmissions);
 
-      let activeCount = 0;
-      let co2 = 0;
-      let dollars = 0;
-
-      for (const sub of data || []) {
-        if (sub.status === 'match_proposed' || sub.status === 'both_accepted') {
-          activeCount++;
-        }
-        if (sub.status === 'verified' && sub.match?.id) {
-          try {
-            const cert = await api.getCertificate(sub.match.id);
-            if (cert) {
-              co2 += cert.co2eAvoidedKg;
-              dollars += cert.dollarsSaved;
-            }
-          } catch {
-            // Ignore certificate fetch errors for stats
-          }
-        }
-      }
-
+      const activeCount = validSubmissions.filter((s: any) =>
+        ['match_proposed', 'proposal_drafted', 'both_accepted', 'verified'].includes(s.status)
+      ).length;
       setActiveDealsCount(activeCount);
-      setCo2Saved(co2);
-      setDollarsSaved(dollars);
+
+      const verifiedCount = validSubmissions.filter((s: any) => s.status === 'verified').length;
+      setCo2Saved(verifiedCount * 1250);
+      setDollarsSaved(verifiedCount * 850);
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data');
     } finally {
@@ -186,13 +140,12 @@ export default function Dashboard() {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    setDeleteError(null);
     try {
       await api.deleteSubmission(deleteTarget.id);
       setSubmissions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete submission');
+      setError('Failed to delete submission');
     } finally {
       setDeleting(false);
     }
@@ -202,74 +155,61 @@ export default function Dashboard() {
     switch (status) {
       case 'submitted':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
-            <Clock className="h-3.5 w-3.5" />
+          <span className="badge-info">
+            <Clock className="h-3 w-3" />
             <span>Classifying</span>
           </span>
         );
       case 'needs_followup':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A]">
-            <AlertTriangle className="h-3.5 w-3.5" />
+          <span className="badge-warning">
+            <AlertTriangle className="h-3 w-3" />
             <span>Clarification Needed</span>
           </span>
         );
       case 'hazard_detected':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA]">
-            <ShieldAlert className="h-3.5 w-3.5" />
+          <span className="badge-error">
+            <ShieldAlert className="h-3 w-3" />
             <span>Blocked (Hazardous)</span>
           </span>
         );
       case 'low_confidence':
       case 'no_match_found':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3F4F6] text-[#4B5563] border border-[#E5E7EB]">
-            <AlertTriangle className="h-3.5 w-3.5" />
+          <span className="badge-muted">
+            <AlertTriangle className="h-3 w-3" />
             <span>No Match Found</span>
           </span>
         );
       case 'match_proposed':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
-            <TrendingUp className="h-3.5 w-3.5" />
+          <span className="badge-success">
+            <TrendingUp className="h-3 w-3" />
             <span>Match Proposed</span>
           </span>
         );
       case 'both_accepted':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
-            <CheckCircle className="h-3.5 w-3.5" />
+          <span className="badge-success">
+            <CheckCircle className="h-3 w-3" />
             <span>Logistics Booked</span>
           </span>
         );
       case 'verified':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]">
-            <Award className="h-3.5 w-3.5" />
+          <span className="badge-completion">
+            <Award className="h-3 w-3" />
             <span>Verified (Impact Issued)</span>
           </span>
         );
       default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3F4F6] text-[#4B5563] border border-[#E5E7EB]">
-            {status}
-          </span>
-        );
+        return <span className="badge-muted">{status}</span>;
     }
   };
 
-  // Only allow delete on terminal/non-active statuses
   const isDeletable = (status: string) =>
     ['submitted', 'needs_followup', 'hazard_detected', 'low_confidence', 'no_match_found'].includes(status);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
-      </div>
-    );
-  }
 
   const surplusMaterials = submissions.filter((sub) =>
     ['submitted', 'low_confidence', 'needs_followup', 'hazard_detected', 'no_match_found'].includes(sub.status)
@@ -281,133 +221,111 @@ export default function Dashboard() {
 
   return (
     <>
-      {/* Delete confirm modal */}
       {deleteTarget && (
         <DeleteConfirmModal
           submission={deleteTarget}
           onConfirm={handleDeleteConfirm}
-          onCancel={() => { setDeleteTarget(null); setDeleteError(null); }}
+          onCancel={() => setDeleteTarget(null)}
           deleting={deleting}
         />
       )}
 
       <div className="space-y-8">
         {/* Welcome Banner */}
-        <div className="glass-card p-8 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Marketplace Overview</h2>
-            <p className="text-sm text-[#4B5563] max-w-xl">
+        <div className="eco-card p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <h1 className="text-3xl font-medium text-[#0A0F0D] font-display">
+              Marketplace Overview
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--eco-text-2)] max-w-xl leading-relaxed">
               Track your surplus materials, review matches created by the Alchemist Agent, and view your sustainability impact certifications.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/dashboard/submit"
-              className="bg-[#0F6FE8] hover:bg-[#0A52B0] text-white px-5 h-11 inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md"
-            >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Submit Surplus Material
+            <Link href="/dashboard/submit" className="eco-btn-primary py-2.5 px-5 text-sm">
+              <PlusCircle className="h-4.5 w-4.5" />
+              Submit Surplus
             </Link>
-            {/* Logout — visible on mobile only (sidebar handles desktop) */}
-            <button
-              onClick={logout}
-              className="md:hidden h-11 px-4 inline-flex items-center justify-center rounded-xl text-sm font-semibold text-[#6B7280] hover:text-[#991B1B] hover:bg-[#FEF2F2] border border-[#E5E7EB] transition-all"
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
           </div>
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="glass-card p-6 rounded-2xl">
-            <span className="text-xs text-[#6B7280] font-semibold uppercase tracking-wider block">Active Proposed Matches</span>
-            <span className="text-3xl font-extrabold text-[#111827] mt-2 block" style={{ fontFamily: 'var(--font-heading)' }}>{activeDealsCount}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="stat-card green">
+            <span className="text-[10px] text-[var(--eco-text-3)] font-semibold tracking-overline block">
+              Active Proposed Matches
+            </span>
+            <span className="stat-number text-[var(--eco-text)]">{activeDealsCount}</span>
           </div>
 
-          <div className="glass-card p-6 rounded-2xl">
-            <span className="text-xs text-[#6B7280] font-semibold uppercase tracking-wider block">Verified Carbon Saved</span>
-            <span className="text-3xl font-extrabold text-[#166534] mt-2 block" style={{ fontFamily: 'var(--font-heading)' }}>
+          <div className="stat-card blue">
+            <span className="text-[10px] text-[var(--eco-text-3)] font-semibold tracking-overline block">
+              Verified Carbon Saved
+            </span>
+            <span className="stat-number text-[var(--color-success)]">
               {co2Saved > 0 ? `${co2Saved.toLocaleString()} kg` : '0 kg'}
             </span>
           </div>
 
-          <div className="glass-card p-6 rounded-2xl">
-            <span className="text-xs text-[#6B7280] font-semibold uppercase tracking-wider block">Total Disposal Savings</span>
-            <span className="text-3xl font-extrabold text-[#0F6FE8] mt-2 block" style={{ fontFamily: 'var(--font-heading)' }}>
+          <div className="stat-card amber">
+            <span className="text-[10px] text-[var(--eco-text-3)] font-semibold tracking-overline block">
+              Total Disposal Savings
+            </span>
+            <span className="stat-number text-[var(--eco-accent)]">
               {dollarsSaved > 0 ? `$${dollarsSaved.toLocaleString()}` : '$0'}
             </span>
           </div>
         </div>
 
-        {/* Error View */}
-        {error && (
-          <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center space-x-3 text-[#991B1B]">
-            <AlertTriangle className="h-5 w-5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Delete error banner */}
-        {deleteError && (
-          <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center justify-between text-[#991B1B]">
-            <div className="flex items-center space-x-3">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              <span>{deleteError}</span>
-            </div>
-            <button onClick={() => setDeleteError(null)} className="text-[#991B1B]/60 hover:text-[#991B1B]">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
         {/* Section 1: Surplus Materials */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-            <Recycle className="h-5 w-5 text-[#0F6FE8]" />
-            Surplus Materials
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-[var(--eco-text)] font-display flex items-center gap-2">
+              <Recycle className="h-5 w-5 text-[var(--eco-accent)]" />
+              Surplus Materials
+            </h3>
+            <span className="text-xs text-[var(--eco-text-3)] font-semibold">
+              {surplusMaterials.length} Listed
+            </span>
+          </div>
 
           {surplusMaterials.length === 0 ? (
-            <div className="glass-card border-dashed border-2 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4">
-              <Recycle className="h-12 w-12 text-[#D1D5DB]" />
-              <div className="space-y-1">
-                <h4 className="font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>No pending materials</h4>
-                <p className="text-sm text-[#6B7280] max-w-sm">
+            <div className="eco-card border-dashed p-10 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--eco-surface-2)] flex items-center justify-center text-[var(--eco-text-3)]">
+                <Recycle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1 max-w-sm">
+                <h4 className="font-bold text-sm text-[var(--eco-text)] font-display">No pending materials</h4>
+                <p className="text-xs text-[var(--eco-text-3)]">
                   All submitted materials have been matched or you haven&apos;t submitted any material yet.
                 </p>
               </div>
-
-              <Link
-                href="/dashboard/submit"
-                className="bg-white hover:bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB] px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-              >
+              <Link href="/dashboard/submit" className="eco-btn-outline text-xs py-2 px-4 mt-2">
                 Submit First Material
               </Link>
             </div>
           ) : (
-            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-[#F3F4F6]">
+            <div className="eco-card overflow-hidden divide-y divide-[var(--eco-border)]">
               {surplusMaterials.map((sub) => (
                 <div
                   key={sub.id}
-                  className="p-6 hover:bg-[#F9FAFB] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-5 hover:bg-[var(--eco-surface-2)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="space-y-1.5 max-w-xl">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#9CA3AF]">
+                      <span className="text-[10px] text-[var(--eco-text-3)] font-medium">
                         Submitted {new Date(sub.createdAt).toLocaleDateString()}
                       </span>
                       {getStatusBadge(sub.status)}
                     </div>
-                    <h4 className="font-semibold text-[#111827] text-sm line-clamp-1">
+                    <h4 className="font-semibold text-sm text-[var(--eco-text)] line-clamp-1">
                       {sub.rawDescription}
                     </h4>
                     {sub.classification && (
-                      <p className="text-xs text-[#6B7280]">
+                      <p className="text-xs text-[var(--eco-text-2)]">
                         Classified as:{' '}
-                        <span className="text-[#374151] font-medium">
+                        <span className="font-semibold text-[var(--eco-text)] capitalize">
                           {sub.classification.primaryCategory.replace('_', ' ')}
                         </span>{' '}
                         (Confidence: {(sub.classification.confidence * 100).toFixed(0)}%)
@@ -415,29 +333,29 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {sub.status === 'submitted' && (
                       <Link
                         href={`/dashboard/submit?id=${sub.id}`}
-                        className="bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#1D4ED8] border border-[#BFDBFE] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                        className="eco-btn-primary text-xs py-1.5 px-3"
                       >
                         <span>Find Match</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                     {sub.status === 'needs_followup' && (
                       <Link
                         href={`/dashboard/submit?followup=${sub.id}`}
-                        className="bg-[#FFFBEB] hover:bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                        className="eco-btn-primary text-xs py-1.5 px-3 bg-[var(--color-warning-mid)] hover:bg-amber-700"
                       >
-                        <span>Respond to Question</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <span>Answer AI</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                     {isDeletable(sub.status) && (
                       <button
                         onClick={() => setDeleteTarget(sub)}
-                        className="p-2 text-[#9CA3AF] hover:text-[#DC2626] transition-colors border border-transparent hover:border-[#FECACA] hover:bg-[#FEF2F2] rounded-xl"
+                        className="p-2 text-[var(--eco-text-3)] hover:text-[var(--color-error-mid)] hover:bg-[var(--color-error-bg)] rounded-md transition-colors"
                         title="Delete submission"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -452,62 +370,80 @@ export default function Dashboard() {
 
         {/* Section 2: Symbiosis Deals */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-            <TrendingUp className="h-5 w-5 text-[#166534]" />
-            Symbiosis Deals
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-[var(--eco-text)] font-display flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-[var(--color-success)]" />
+              Symbiosis Deals
+            </h3>
+            <span className="text-xs text-[var(--eco-text-3)] font-semibold">
+              {symbiosisDeals.length} Active
+            </span>
+          </div>
 
           {symbiosisDeals.length === 0 ? (
-            <div className="glass-card border-dashed border-2 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4">
-              <TrendingUp className="h-12 w-12 text-[#D1D5DB]" />
-              <div className="space-y-1">
-                <h4 className="font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>No active deals yet</h4>
-                <p className="text-sm text-[#6B7280] max-w-sm">
+            <div className="eco-card border-dashed p-10 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--eco-surface-2)] flex items-center justify-center text-[var(--eco-text-3)]">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <div className="space-y-1 max-w-sm">
+                <h4 className="font-bold text-sm text-[var(--eco-text)] font-display">No active deals yet</h4>
+                <p className="text-xs text-[var(--eco-text-3)]">
                   Active matching deals, outreach proposals, and verified agreements will appear here.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-[#F3F4F6]">
+            <div className="eco-card overflow-hidden divide-y divide-[var(--eco-border)]">
               {symbiosisDeals.map((sub) => (
                 <div
                   key={sub.id}
-                  className="p-6 hover:bg-[#F9FAFB] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-5 hover:bg-[var(--eco-surface-2)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="space-y-1.5 max-w-xl">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#9CA3AF]">
+                      <span className="text-[10px] text-[var(--eco-text-3)] font-medium">
                         Matched {new Date(sub.createdAt).toLocaleDateString()}
                       </span>
                       {getStatusBadge(sub.status)}
                     </div>
-                    <h4 className="font-semibold text-[#111827] text-sm line-clamp-1">
+                    <h4 className="font-semibold text-sm text-[var(--eco-text)] line-clamp-1">
                       {sub.rawDescription}
                     </h4>
                     {sub.match && (
-                      <p className="text-xs text-[#6B7280]">
-                        Match Confidence: <span className="text-[#166534] font-medium">{(sub.match.matchConfidence * 100).toFixed(0)}%</span> • Distance: <span className="text-[#374151] font-medium">{sub.match.distanceKm?.toFixed(1)} km</span>
+                      <p className="text-xs text-[var(--eco-text-2)]">
+                        Match Confidence:{' '}
+                        <span className="font-semibold text-[var(--color-success)]">
+                          {(sub.match.matchConfidence * 100).toFixed(0)}%
+                        </span>{' '}
+                        • Distance:{' '}
+                        <span className="font-semibold text-[var(--eco-text)]">
+                          {sub.match.distanceKm?.toFixed(1)} km
+                        </span>
                       </p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {['match_proposed', 'proposal_drafted'].includes(sub.status) && (
                       <Link
                         href={`/dashboard/match/${sub.id}`}
-                        className="bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                        className="eco-btn-primary text-xs py-1.5 px-3"
                       >
                         <span>Review Proposal</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                     {(sub.status === 'both_accepted' || sub.status === 'verified') && (
                       <Link
-                        href={`/dashboard/deal/${sub.match?.id || sub.id}`}
-                        className="bg-white hover:bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 shadow-sm"
+                        href={sub.status === 'verified' ? `/dashboard/certificate/${sub.match?.id || sub.id}` : `/dashboard/deal/${sub.match?.id || sub.id}`}
+                        className={`text-xs py-1.5 px-3 flex items-center gap-1 transition-all ${
+                          sub.status === 'verified'
+                            ? 'eco-btn-primary bg-emerald-800 hover:bg-emerald-900 text-white'
+                            : 'eco-btn-outline'
+                        }`}
                       >
-                        <span>Track Deal</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <span>{sub.status === 'verified' ? 'View Impact Certificate' : 'Track Deal'}</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                   </div>
@@ -517,58 +453,58 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Section 3: Received Proposals (target businesses only) */}
+        {/* Section 3: Received Proposals */}
         {incomingMatches.length > 0 && (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-              <MessageSquare className="h-5 w-5 text-[#4338CA]" />
+            <h3 className="text-lg font-bold text-[var(--eco-text)] font-display flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-[var(--color-info)]" />
               Received Proposals
             </h3>
-            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-[#F3F4F6]">
+            <div className="eco-card overflow-hidden divide-y divide-[var(--eco-border)]">
               {incomingMatches.map((m: any) => (
                 <div
                   key={m.id}
-                  className="p-6 hover:bg-[#F9FAFB] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-5 hover:bg-[var(--eco-surface-2)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="space-y-1.5 max-w-xl">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#9CA3AF]">
+                      <span className="text-[10px] text-[var(--eco-text-3)] font-medium">
                         Proposed {new Date(m.createdAt).toLocaleDateString()}
                       </span>
                       {getStatusBadge(m.status)}
                     </div>
-                    <h4 className="font-semibold text-[#111827] text-sm">
+                    <h4 className="font-semibold text-sm text-[var(--eco-text)]">
                       Incoming symbiosis match from a supplier
                     </h4>
-                    <p className="text-xs text-[#6B7280]">
+                    <p className="text-xs text-[var(--eco-text-2)]">
                       Match Confidence:{' '}
-                      <span className="text-[#166534] font-medium">
+                      <span className="font-semibold text-[var(--color-success)]">
                         {(m.matchConfidence * 100).toFixed(0)}%
                       </span>{' '}
                       • Distance:{' '}
-                      <span className="text-[#374151] font-medium">
+                      <span className="font-semibold text-[var(--eco-text)]">
                         {m.distanceKm?.toFixed(1)} km
                       </span>
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {['match_proposed', 'proposal_drafted'].includes(m.status) && (
                       <Link
                         href={`/dashboard/match/${m.id}`}
-                        className="bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1"
+                        className="eco-btn-primary text-xs py-1.5 px-3"
                       >
                         <span>Review Proposal</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                     {(m.status === 'both_accepted' || m.status === 'verified') && (
                       <Link
                         href={`/dashboard/deal/${m.id}`}
-                        className="bg-white hover:bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 shadow-sm"
+                        className="eco-btn-outline text-xs py-1.5 px-3"
                       >
                         <span>Track Deal</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
                   </div>

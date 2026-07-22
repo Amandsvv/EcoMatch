@@ -5,6 +5,8 @@ import * as schema from './schema';
 let pool: Pool | null = null;
 let db: ReturnType<typeof drizzle> | null = null;
 
+//Singelton Desgin
+
 export function getPool(): Pool {
   if (!pool) {
     pool = new Pool({

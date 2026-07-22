@@ -125,14 +125,14 @@ export class AuthService {
 
     const user = await this.repository.getUserByEmail(email);
     if (!user) {
-      logger.warn('Login failed: user not found', { email });
-      throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid email or password');
+      logger.warn('Login failed: email not registered', { email });
+      throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Email not registered');
     }
 
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {
       logger.warn('Login failed: password mismatch', { email, userId: user.id });
-      throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid email or password');
+      throw new AppError(ErrorCodes.INVALID_CREDENTIALS, 401, 'Invalid credentials');
     }
 
     if (!user.emailVerified) {

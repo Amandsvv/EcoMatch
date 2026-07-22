@@ -7,6 +7,7 @@ import { validateRequest } from '../../lib/validation.middleware';
 import { CreateHaulerSchema } from './admin.validation';
 import { AppError, ErrorCodes } from '../../lib/errors';
 
+
 const router = Router();
 router.use(authMiddleware);
 

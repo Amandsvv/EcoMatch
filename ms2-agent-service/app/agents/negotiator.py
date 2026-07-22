@@ -65,21 +65,26 @@ class NegotiatorState(TypedDict):
 async def _node_llm_determine_terms(state: NegotiatorState) -> dict:
     """LLM decides fair deal terms from reference data and deal context."""
     match = state["match"]
+    user_disposal_cost = match.get("disposalCostPerUnit") or match.get("sourceDisposalCost")
+    user_frequency = match.get("disposalFrequency") or "weekly"
     category = match.get("classification", {}).get("primaryCategory", "unknown")
     market_price = get_market_price(category)
     category_info = get_category(category) or {}
+
+    base_price = float(user_disposal_cost) if user_disposal_cost is not None and float(user_disposal_cost) > 0 else float(market_price)
 
     try:
         result = await llm_client.complete_json(
             system_prompt=(
                 "You are EcoMatch's Negotiator Agent determining fair deal terms for a waste "
-                "material match. Use the provided reference data to set a proposed price that "
-                "undercuts the source's disposal cost while being fair to the target. "
+                "material match. Use the provided user disposal cost to set a proposed price. "
                 "Choose a realistic contract length and frequency. "
-                "Do not invent numbers — reason from the facts provided."
+                "Do not invent arbitrary numbers — stay grounded in the user's submitted disposal cost."
             ),
             operation="negotiator_determine_terms",
             user_payload={
+                "userDisposalCost": base_price,
+                "userFrequency": user_frequency,
                 "primaryCategory": category,
                 "categoryDescription": category_info.get("description", ""),
                 "marketPricePerTon": market_price,
@@ -96,8 +101,8 @@ async def _node_llm_determine_terms(state: NegotiatorState) -> dict:
             },
         )
         terms = {
-            "pricePerUnit": float(result.get("pricePerUnit") or market_price * 0.85),
-            "frequency": str(result.get("frequency") or "monthly"),
+            "pricePerUnit": float(result.get("pricePerUnit") or base_price),
+            "frequency": str(result.get("frequency") or user_frequency),
             "contractLengthMonths": int(result.get("contractLengthMonths") or 12),
             "startDate": str(result.get("startDate") or "to be confirmed"),
             "notes": str(result.get("notes") or "Subject to material inspection and quality verification"),
@@ -105,8 +110,8 @@ async def _node_llm_determine_terms(state: NegotiatorState) -> dict:
     except (LLMConfigurationError, LLMResponseError) as exc:
         logger.info("Negotiator terms fallback", extra={"reason": str(exc)})
         terms = {
-            "pricePerUnit": market_price * 0.85,
-            "frequency": "monthly",
+            "pricePerUnit": base_price,
+            "frequency": user_frequency,
             "contractLengthMonths": 12,
             "startDate": "to be confirmed",
             "notes": "Subject to material inspection and quality verification",
@@ -158,19 +163,19 @@ async def _llm_draft_message(
     Ask the LLM for a warm, non-pushy in-platform proposal message.
     NEVER includes phone, email, or physical address.
     """
-    audience_name = audience_business.get("name", "Partner")
-    counterpart_name = counterpart_business.get("name", "potential partner")
+    raw_desc = match.get("rawDescription") or ""
+    subtype = match.get("classification", {}).get("subtype") or ""
+    rationale = match.get("matchRationale") or ""
+    audience_name = (audience_business or {}).get("name") or "Business"
+    counterpart_name = (counterpart_business or {}).get("name") or "the counterpart business"
 
     safe_payload = {
         "audienceRole": audience_role,
         "audienceBusiness": {"name": audience_name},
         "counterpartBusiness": {"name": counterpart_name},
-        "match": {
-            "id": match.get("id"),
-            "classification": match.get("classification"),
-            "targetBusinessId": match.get("targetBusinessId"),
-            "matchRationale": match.get("matchRationale"),
-        },
+        "submittedMaterialDescription": raw_desc,
+        "materialSubtype": subtype,
+        "matchRationale": rationale,
         "terms": terms,
         "stricterTonePass": stricter,
     }
@@ -179,9 +184,13 @@ async def _llm_draft_message(
         result = await llm_client.complete_json(
             system_prompt=(
                 "You are EcoMatch's Negotiator Agent. Draft a warm, specific, non-pushy "
-                "dashboard proposal for the logged-in business. The message is for in-platform "
-                "display only — NEVER include phone numbers, email addresses, physical addresses, "
-                "or any other contact details. Do not imply the deal is confirmed, binding, "
+                "dashboard proposal for the logged-in business. "
+                "CRITICAL REQUIREMENT: You MUST reference the exact submitted material description "
+                "('submittedMaterialDescription') and material subtype ('materialSubtype') provided in the payload. "
+                "NEVER introduce, mention, or substitute coffee grounds, spent grain, or any other material "
+                "that is not explicitly specified in 'submittedMaterialDescription' or 'materialSubtype'. "
+                "The message is for in-platform display only — NEVER include phone numbers, email addresses, "
+                "physical addresses, or any other contact details. Do not imply the deal is confirmed, binding, "
                 "guaranteed, required, or already accepted by the other party. "
                 "Clearly frame it as a proposal the current business can accept or reject."
             ),
@@ -195,30 +204,29 @@ async def _llm_draft_message(
         raise LLMResponseError("message missing from LLM response")
     except (LLMConfigurationError, LLMResponseError) as exc:
         logger.info("Negotiator draft fallback", extra={"audienceRole": audience_role, "reason": str(exc)})
-        return _fallback_message(audience_role, audience_name, counterpart_name, terms)
+        return _fallback_message(audience_role, audience_name, counterpart_name, terms, raw_desc)
 
 
-def _fallback_message(role: str, audience: str, counterpart: str, terms: dict) -> str:
+def _fallback_message(role: str, audience: str, counterpart: str, terms: dict, raw_desc: str = "") -> str:
     """Local draft used when no LLM is configured."""
+    mat_text = f" ({raw_desc})" if raw_desc else ""
     if role == "source_business":
         intro = (
-            f"We've identified {counterpart} as a potential recipient for your material. "
+            f"We've identified {counterpart} as a potential recipient for your material{mat_text}. "
             "They operate in a compatible line of work and may benefit from your supply."
         )
     else:
         intro = (
-            f"We've identified {counterpart} as a potential supplier of material that may "
+            f"We've identified {counterpart} as a potential supplier of material{mat_text} that may "
             "match your operations."
         )
     return (
-        f"Hello {audience},\n\n{intro}\n\n"
+        f"A proposal is available for {audience} to engage with {counterpart}.\n\n{intro}\n\n"
         f"Proposed terms:\n"
         f"- Price: ${terms['pricePerUnit']:.2f} per unit\n"
         f"- Frequency: {terms['frequency']}\n"
         f"- Contract length: {terms['contractLengthMonths']} months\n\n"
-        "If this looks useful, you can review and accept this proposal in your dashboard. "
-        "The arrangement moves forward only after both businesses accept.\n\n"
-        "EcoMatch Team"
+        "If this looks useful, you can review and accept this proposal in your dashboard."
     )
 
 
@@ -257,11 +265,11 @@ async def _check_single_draft(draft_message: str) -> bool:
             system_prompt=(
                 "You are a quality reviewer for EcoMatch proposal drafts. "
                 "Check ALL of the following rules:\n"
-                "1. No pressure language (e.g. 'must', 'required', 'guaranteed', 'binding').\n"
-                "2. Does not imply the deal is confirmed or the other party has already agreed.\n"
+                "1. No pushy sales pressure or aggressive demands (e.g. 'you must accept immediately', 'binding requirement'). Standard material specifications or quality notes are acceptable.\n"
+                "2. Does not imply the deal is already finalized or that the other party has already agreed.\n"
                 "3. Contains no contact information (phone, email, address, or URLs).\n"
-                "4. Clearly frames itself as a PROPOSAL awaiting the reader's own accept/reject.\n"
-                "Return toneOk=true ONLY if all four rules pass."
+                "4. Clearly frames itself as a PROPOSAL awaiting the reader's own accept/reject decision.\n"
+                "Return toneOk=true if all rules pass."
             ),
             operation="negotiator_tone_check",
             user_payload={"draftMessage": draft_message},

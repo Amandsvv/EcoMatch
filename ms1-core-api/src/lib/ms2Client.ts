@@ -57,8 +57,12 @@ interface DraftRequest {
   match: {
     sourceBusinessId: string;
     targetBusinessId: string;
+    disposalCostPerUnit?: number;
+    disposalFrequency?: string;
     estimatedSourceSavings: number;
-    estimatedTargetSavingsPct: number;
+    estimatedTargetSavingsPct?: number;
+    rawDescription?: string;
+    matchRationale?: string;
     classification?: {
       primaryCategory: string;
       subtype?: string;

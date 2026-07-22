@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { 
-  Recycle, 
+  Leaf,
   ArrowRight, 
   Loader2, 
   AlertCircle, 
@@ -24,7 +24,7 @@ import {
 
 import { SubmitSurplusSchema } from '@/lib/validation';
 
-export default function SubmitSurplus() {
+function SubmitSurplusContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -215,20 +215,21 @@ export default function SubmitSurplus() {
     setResult(null);
   };
 
-  const inputCls = "w-full bg-white border border-[#D1D5DB] focus:border-[#0F6FE8] rounded-xl px-4 py-3 text-sm text-[#111827] placeholder-[#9CA3AF] transition-all outline-none";
-  const labelCls = "block text-xs font-semibold text-[#374151] uppercase tracking-wider mb-2";
+  const inputCls = "w-full border rounded-md px-4 py-3 text-sm outline-none transition-all resize-none";
+  const inputStyle: React.CSSProperties = { background: 'var(--eco-surface)', borderColor: 'var(--eco-border)', color: 'var(--eco-text)' };
+  const labelCls = "block tracking-overline text-[10px] font-semibold mb-2";
 
   return (
     <div className="max-w-2xl mx-auto">
       {pipelineStatus === 'idle' && (
-        <div className="glass-card p-8 rounded-2xl">
-          <h2 className="text-xl font-bold text-[#111827] mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Describe Your Surplus</h2>
-          <p className="text-sm text-[#4B5563] mb-6">
+        <div className="eco-card p-8">
+          <h2 className="font-display text-xl font-bold mb-2" style={{ color: 'var(--eco-text)' }}>Describe Your Surplus</h2>
+          <p className="text-sm mb-6" style={{ color: 'var(--eco-text-2)' }}>
             Input the details of your industrial waste or surplus. The Scout Agent will classify the chemical and physical composition to check for safety and compatibility.
           </p>
 
           {error && (
-            <div className="mb-6 bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-start space-x-3 text-[#991B1B] text-sm">
+            <div className="mb-6 rounded-lg p-4 flex items-start gap-3 text-sm badge-error">
               <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -236,13 +237,14 @@ export default function SubmitSurplus() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className={labelCls}>Material Description</label>
+              <label className={labelCls} style={{ color: 'var(--eco-text-2)' }}>Material Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 placeholder="Example: 5 tons of organic spent brewer's grain and malt extract from brewing operations, free of chemical contaminants."
-                className={`${inputCls} resize-none`}
+                className={inputCls}
+                style={inputStyle}
                 disabled={loading}
                 required
               />
@@ -250,9 +252,9 @@ export default function SubmitSurplus() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className={labelCls}>Disposal Cost per Ton / Unit ($)</label>
+                <label className={labelCls} style={{ color: 'var(--eco-text-2)' }}>Disposal Cost per Ton / Unit ($)</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10" style={{ color: 'var(--eco-text-3)' }}>
                     <DollarSign className="h-4 w-4" />
                   </div>
                   <input
@@ -260,7 +262,8 @@ export default function SubmitSurplus() {
                     value={cost}
                     onChange={(e) => setCost(e.target.value)}
                     placeholder="50"
-                    className={`${inputCls} pl-9`}
+                    className="w-full border rounded-md pl-10 pr-4 py-3 text-sm outline-none transition-all"
+                    style={inputStyle}
                     disabled={loading}
                     required
                   />
@@ -268,11 +271,12 @@ export default function SubmitSurplus() {
               </div>
 
               <div>
-                <label className={labelCls}>Frequency of Waste Output</label>
+                <label className={labelCls} style={{ color: 'var(--eco-text-2)' }}>Frequency of Waste Output</label>
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value)}
-                  className={`${inputCls} text-[#111827]`}
+                  className={inputCls}
+                  style={inputStyle}
                   disabled={loading}
                 >
                   <option value="once">One-time Surplus</option>
@@ -284,27 +288,28 @@ export default function SubmitSurplus() {
             </div>
 
             <div>
-              <label className={labelCls}>Upload Material Photo (Optional)</label>
-              
+                <label className={labelCls} style={{ color: 'var(--eco-text-2)' }}>Upload Material Photo (Optional)</label>
+
               {photoRef ? (
-                <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-4 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <img src={photoRef} alt="Surplus Upload" className="h-12 w-12 rounded-lg object-cover border border-[#E5E7EB]" />
+                <div className="p-4 rounded-md flex items-center justify-between" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
+                  <div className="flex items-center gap-3">
+                    <img src={photoRef} alt="Surplus Upload" className="h-12 w-12 rounded-md object-cover" style={{ border: '1px solid var(--eco-border)' }} />
                     <div>
-                      <span className="text-xs font-bold text-[#166534] block">Image Uploaded Successfully</span>
-                      <span className="text-[10px] text-[#6B7280] block truncate max-w-[200px]">{photoRef}</span>
+                      <span className="text-xs font-bold block" style={{ color: 'var(--color-success)' }}>Image Uploaded Successfully</span>
+                      <span className="text-[10px] block truncate max-w-[200px]" style={{ color: 'var(--eco-text-3)' }}>{photoRef}</span>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setPhotoRef('')}
-                    className="text-xs text-[#DC2626] hover:text-[#B91C1C] font-semibold"
+                    className="text-xs font-semibold"
+                    style={{ color: 'var(--color-error-mid)' }}
                   >
                     Remove
                   </button>
                 </div>
               ) : (
-                <div className="bg-[#F9FAFB] border border-[#E5E7EB] border-dashed rounded-xl p-6 text-center hover:border-[#0F6FE8] hover:bg-[#EFF6FF] transition-all relative">
+                <div className="border border-dashed rounded-md p-6 text-center transition-all relative" style={{ background: 'var(--eco-surface-2)', borderColor: 'var(--eco-border)' }}>
                   <input
                     type="file"
                     accept="image/*"
@@ -312,17 +317,17 @@ export default function SubmitSurplus() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     disabled={uploadingPhoto || loading}
                   />
-                  <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="flex flex-col items-center justify-center gap-2">
                     {uploadingPhoto ? (
                       <>
-                        <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
-                        <span className="text-xs font-semibold text-[#4B5563] animate-pulse">Uploading to Cloudinary...</span>
+                        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--eco-primary)' }} />
+                        <span className="text-xs font-semibold animate-pulse" style={{ color: 'var(--eco-text-2)' }}>Uploading to Cloudinary...</span>
                       </>
                     ) : (
                       <>
-                        <Camera className="h-8 w-8 text-[#9CA3AF]" />
-                        <span className="text-xs font-semibold text-[#4B5563]">Click or drag photo here to upload</span>
-                        <span className="text-[10px] text-[#9CA3AF]">Supports PNG, JPG, GIF up to 10MB</span>
+                        <Camera className="h-8 w-8" style={{ color: 'var(--eco-text-3)' }} />
+                        <span className="text-xs font-semibold" style={{ color: 'var(--eco-text-2)' }}>Click or drag photo here to upload</span>
+                        <span className="text-[10px]" style={{ color: 'var(--eco-text-3)' }}>Supports PNG, JPG, GIF up to 10MB</span>
                       </>
                     )}
                   </div>
@@ -333,7 +338,7 @@ export default function SubmitSurplus() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="eco-btn-primary w-full py-3.5 text-sm"
             >
               {loading ? (
                 <span className="flex items-center">
@@ -353,16 +358,16 @@ export default function SubmitSurplus() {
 
       {/* Pipeline Loader — Classifying */}
       {pipelineStatus === 'classifying' && (
-        <div className="glass-card p-12 rounded-2xl text-center space-y-6">
+        <div className="eco-card p-12 text-center space-y-6">
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-[#EFF6FF] rounded-full blur-xl animate-pulse"></div>
-              <Recycle className="h-16 w-16 text-[#0F6FE8] animate-spin relative z-10" />
+              <div className="absolute inset-0 rounded-full blur-xl animate-pulse" style={{ background: 'var(--eco-surface-2)' }} />
+              <Leaf className="h-16 w-16 animate-spin relative z-10" style={{ color: 'var(--eco-primary)' }} />
             </div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Analyzing Material Composition</h3>
-            <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
+            <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>Analyzing Material Composition</h3>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
               The Scout Agent is classifying your material, assessing safety checks, and estimating composition...
             </p>
           </div>
@@ -371,16 +376,16 @@ export default function SubmitSurplus() {
 
       {/* Pipeline Loader — Matching */}
       {pipelineStatus === 'matching' && (
-        <div className="glass-card p-12 rounded-2xl text-center space-y-6">
+        <div className="eco-card p-12 text-center space-y-6">
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-[#F0FDF4] rounded-full blur-xl animate-pulse"></div>
-              <Sparkles className="h-16 w-16 text-[#166534] animate-spin relative z-10" />
+              <div className="absolute inset-0 rounded-full blur-xl animate-pulse" style={{ background: 'var(--eco-surface-2)' }} />
+              <Sparkles className="h-16 w-16 animate-spin relative z-10" style={{ color: 'var(--eco-primary)' }} />
             </div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Searching for Symbiosis Match</h3>
-            <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
+            <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>Searching for Symbiosis Match</h3>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
               The Alchemist Agent is searching the database for compatible reuse businesses, verifying chemical constraints, and ranking candidates...
             </p>
           </div>
@@ -389,16 +394,16 @@ export default function SubmitSurplus() {
 
       {/* Pipeline Loader — Drafting */}
       {pipelineStatus === 'drafting' && (
-        <div className="glass-card p-12 rounded-2xl text-center space-y-6">
+        <div className="eco-card p-12 text-center space-y-6">
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-[#EEF2FF] rounded-full blur-xl animate-pulse"></div>
-              <MessageSquare className="h-16 w-16 text-[#4338CA] animate-bounce relative z-10" />
+              <div className="absolute inset-0 rounded-full blur-xl animate-pulse" style={{ background: 'var(--eco-surface-2)' }} />
+              <MessageSquare className="h-16 w-16 animate-bounce relative z-10" style={{ color: 'var(--eco-primary)' }} />
             </div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Drafting Proposal Agreement</h3>
-            <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
+            <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>Drafting Proposal Agreement</h3>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
               The Negotiator Agent is calculating mutually beneficial pricing, contract lengths, and drafting the agreement messages...
             </p>
           </div>
@@ -408,63 +413,63 @@ export default function SubmitSurplus() {
       {/* Scout Result Stage */}
       {pipelineStatus === 'scout_done' && result && (
         <div className="space-y-6">
-          <div className="glass-card p-8 rounded-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-4">
+          <div className="eco-card p-8 space-y-6">
+            <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid var(--eco-border)' }}>
               <div>
-                <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  <ShieldCheck className="h-5 w-5 text-[#166534]" />
+                <h3 className="font-display text-lg font-bold flex items-center gap-2" style={{ color: 'var(--eco-text)' }}>
+                  <ShieldCheck className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
                   Scout Analysis Result
                 </h3>
-                <p className="text-xs text-[#6B7280] font-medium">Material classification and safety assessment complete</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--eco-text-3)' }}>Material classification and safety assessment complete</p>
               </div>
-              <span className="bg-[#F0FDF4] text-[#166534] text-xs px-2.5 py-1 rounded-full border border-[#BBF7D0] font-semibold">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold badge-success">
                 Passes Safety Check
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB]">
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Primary Category</span>
-                <span className="text-sm font-semibold text-[#111827] mt-1 block capitalize">
+              <div className="p-4 rounded-md" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Primary Category</span>
+                <span className="text-sm font-semibold mt-1 block capitalize" style={{ color: 'var(--eco-text)' }}>
                   {result.classification.primaryCategory.replace('_', ' ')}
                 </span>
               </div>
-              <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB]">
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Subtype / Material</span>
-                <span className="text-sm font-semibold text-[#111827] mt-1 block capitalize">
+              <div className="p-4 rounded-md" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Subtype / Material</span>
+                <span className="text-sm font-semibold mt-1 block capitalize" style={{ color: 'var(--eco-text)' }}>
                   {result.classification.subtype || 'N/A'}
                 </span>
               </div>
-              <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] md:col-span-2">
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Estimated Composition</span>
-                <div className="mt-2 text-xs text-[#374151] space-y-1">
+              <div className="p-4 rounded-md md:col-span-2" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Estimated Composition</span>
+                <div className="mt-2 text-xs space-y-1" style={{ color: 'var(--eco-text-2)' }}>
                   {result.classification.estimatedComposition ? (
                     Object.entries(
                       typeof result.classification.estimatedComposition === 'string'
                         ? JSON.parse(result.classification.estimatedComposition)
                         : result.classification.estimatedComposition
                     ).map(([key, val]: any) => (
-                      <div key={key} className="flex justify-between border-b border-[#E5E7EB] pb-1 last:border-0 last:pb-0">
-                        <span className="text-[#6B7280] capitalize">{key.replace('_', ' ')}</span>
-                        <span className="font-semibold text-[#374151]">{val}</span>
+                      <div key={key} className="flex justify-between pb-1 last:pb-0" style={{ borderBottom: '1px solid var(--eco-border)' }}>
+                        <span className="capitalize" style={{ color: 'var(--eco-text-3)' }}>{key.replace('_', ' ')}</span>
+                        <span className="font-semibold" style={{ color: 'var(--eco-text-2)' }}>{val}</span>
                       </div>
                     ))
                   ) : (
-                    <span className="text-[#9CA3AF]">No composition details estimated</span>
+                    <span style={{ color: 'var(--eco-text-3)' }}>No composition details estimated</span>
                   )}
                 </div>
               </div>
-              <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] md:col-span-2">
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Analysis Confidence</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-full bg-[#E5E7EB] h-2 rounded-full overflow-hidden">
+              <div className="p-4 rounded-md md:col-span-2" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Analysis Confidence</span>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--eco-border)' }}>
                     <div 
-                      className="bg-[#0F6FE8] h-full rounded-full transition-all" 
-                      style={{ width: `${result.classification.confidence * 100}%` }}
+                      className="h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${(result.classification?.confidence || 0.9) * 100}%`, background: '#1B4332' }}
                     />
                   </div>
-                  <span className="text-xs font-bold text-[#0F6FE8]">
-                    {(result.classification.confidence * 100).toFixed(0)}%
+                  <span className="text-xs font-extrabold shrink-0" style={{ color: '#1B4332' }}>
+                    {((result.classification?.confidence || 0.9) * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>
@@ -472,11 +477,11 @@ export default function SubmitSurplus() {
 
             <button
               onClick={handleFindMatch}
-              className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group"
+              className="eco-btn-primary w-full py-3.5 text-sm gap-2"
             >
               <Search className="h-4 w-4" />
               Find Symbiosis Match (Alchemist Agent)
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -486,52 +491,52 @@ export default function SubmitSurplus() {
       {pipelineStatus === 'alchemist_done' && result && (
         <div className="space-y-6">
           {/* Scout result summary (minimized) */}
-          <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-4 rounded-xl flex items-center justify-between">
+          <div className="p-4 rounded-md flex items-center justify-between" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
             <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-[#166534]" />
+              <ShieldCheck className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
               <div>
-                <span className="text-xs font-semibold text-[#166534] block">Scout Assessment Complete</span>
-                <span className="text-[10px] text-[#4B5563]">
+                <span className="text-xs font-semibold block" style={{ color: 'var(--color-success)' }}>Scout Assessment Complete</span>
+                <span className="text-[10px]" style={{ color: 'var(--eco-text-2)' }}>
                   {result.classification.primaryCategory.replace('_', ' ')} • {result.classification.subtype}
                 </span>
               </div>
             </div>
-            <span className="text-[10px] font-bold text-[#166534]">{(result.classification.confidence * 100).toFixed(0)}% Conf.</span>
+            <span className="text-[10px] font-bold" style={{ color: 'var(--color-success)' }}>{(result.classification.confidence * 100).toFixed(0)}% Conf.</span>
           </div>
 
-          <div className="glass-card p-8 rounded-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-4">
+          <div className="eco-card p-8 space-y-6">
+            <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid var(--eco-border)' }}>
               <div>
-                <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  <Sparkles className="h-5 w-5 text-[#0F6FE8]" />
+                <h3 className="font-display text-lg font-bold flex items-center gap-2" style={{ color: 'var(--eco-text)' }}>
+                  <Sparkles className="h-5 w-5" style={{ color: 'var(--eco-primary)' }} />
                   Alchemist Match Found
                 </h3>
-                <p className="text-xs text-[#6B7280] font-medium">Optimal compatible business pairing nearby</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--eco-text-3)' }}>Optimal compatible business pairing nearby</p>
               </div>
-              <span className="bg-[#F0FDF4] text-[#166534] text-xs px-2.5 py-1 rounded-full border border-[#BBF7D0] font-semibold">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold badge-success">
                 {(result.match.matchConfidence * 100).toFixed(0)}% Match
               </span>
             </div>
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB]">
-                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Target Partner Type</span>
-                  <span className="text-sm font-semibold text-[#111827] mt-1 block capitalize">
+                <div className="p-4 rounded-md" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                  <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Target Partner Type</span>
+                  <span className="text-sm font-semibold mt-1 block capitalize" style={{ color: 'var(--eco-text)' }}>
                     {result.match.targetBusinessId ? 'Compatible Local Operation' : 'N/A'}
                   </span>
                 </div>
-                <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB]">
-                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Proximity Distance</span>
-                  <span className="text-sm font-semibold text-[#111827] mt-1 block flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-[#0F6FE8]" />
+                <div className="p-4 rounded-md" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                  <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Proximity Distance</span>
+                  <span className="text-sm font-semibold mt-1 flex items-center gap-1" style={{ color: 'var(--eco-text)' }}>
+                    <MapPin className="h-4 w-4" style={{ color: 'var(--eco-primary)' }} />
                     {result.match.distanceKm.toFixed(1)} km away
                   </span>
                 </div>
                 {result.match.estimatedSourceSavings && (
-                  <div className="bg-[#F0FDF4] p-4 rounded-xl border border-[#BBF7D0] md:col-span-2">
-                    <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Estimated Economic Savings</span>
-                    <span className="text-lg font-bold text-[#166534] mt-1 block flex items-center gap-0.5">
+                  <div className="p-4 rounded-md md:col-span-2" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
+                    <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Estimated Economic Savings</span>
+                    <span className="text-lg font-bold mt-1 flex items-center gap-0.5" style={{ color: 'var(--color-success)' }}>
                       <DollarSign className="h-5 w-5" />
                       {result.match.estimatedSourceSavings.toLocaleString()} / year saved
                     </span>
@@ -539,14 +544,14 @@ export default function SubmitSurplus() {
                 )}
               </div>
 
-              <div className="bg-[#F9FAFB] p-5 rounded-xl border border-[#E5E7EB] space-y-2">
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Match Rationale</span>
-                <p className="text-xs text-[#4B5563] leading-relaxed italic">
+              <div className="p-5 rounded-md space-y-2" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Match Rationale</span>
+                <p className="text-xs leading-relaxed italic" style={{ color: 'var(--eco-text-2)' }}>
                   &ldquo;{result.match.matchRationale}&rdquo;
                 </p>
               </div>
 
-              <div className="bg-[#FFFBEB] p-3 rounded-lg border border-[#FDE68A] text-[10px] text-[#92400E] flex items-start gap-2">
+              <div className="p-3 rounded-md text-[10px] flex items-start gap-2" style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', color: 'var(--color-warning)' }}>
                 <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>Contact details (phone, email, address) are completely hidden for privacy until both sides accept the terms.</span>
               </div>
@@ -554,11 +559,11 @@ export default function SubmitSurplus() {
 
             <button
               onClick={handleDraftMessage}
-              className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group"
+              className="eco-btn-primary w-full py-3.5 text-sm gap-2"
             >
               <MessageSquare className="h-4 w-4" />
               Draft Proposal Agreement (Negotiator Agent)
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -569,31 +574,31 @@ export default function SubmitSurplus() {
         <div className="space-y-6">
           {/* 1. Proposal Drafted Success View */}
           {result.status === 'proposal_drafted' && (
-            <div className="glass-card p-8 rounded-2xl space-y-6 text-center">
+            <div className="eco-card p-8 space-y-6 text-center">
               <div className="flex justify-center">
-                <div className="bg-[#F0FDF4] p-4 rounded-full border border-[#BBF7D0]">
-                  <CheckCircle className="h-12 w-12 text-[#166534]" />
+                <div className="p-4 rounded-full" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
+                  <CheckCircle className="h-12 w-12" style={{ color: 'var(--color-success)' }} />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Proposal Agreement Ready!</h3>
-                <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
+                <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>Proposal Agreement Ready!</h3>
+                <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
                   Negotiator Agent drafted a friendly proposal including surplus details. The agreement has been sent to the partner&apos;s dashboard.
                 </p>
               </div>
 
-              <div className="bg-[#F9FAFB] p-6 rounded-xl border border-[#E5E7EB] text-left space-y-4">
+              <div className="p-6 rounded-md text-left space-y-4" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
                 <div>
-                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Deal Status</span>
-                  <span className="text-sm font-semibold text-[#166534] mt-1 block flex items-center gap-1.5">
+                  <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Deal Status</span>
+                  <span className="text-sm font-semibold mt-1 flex items-center gap-1.5" style={{ color: 'var(--color-success)' }}>
                     <ShieldCheck className="h-4 w-4" />
                     Awaiting Business Acceptance
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Privacy Lock</span>
-                  <p className="text-xs text-[#4B5563] mt-1 leading-relaxed">
+                  <span className="tracking-overline text-[10px] font-bold block" style={{ color: 'var(--eco-text-3)' }}>Privacy Lock</span>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--eco-text-2)' }}>
                     Contact details will be shared automatically once both parties click &ldquo;Accept&rdquo;.
                   </p>
                 </div>
@@ -601,40 +606,41 @@ export default function SubmitSurplus() {
 
               <button
                 onClick={() => router.push(`/dashboard/match/${result.submissionId}`)}
-                className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center group"
+                className="eco-btn-primary w-full py-3.5 text-sm"
               >
                 Review Proposal Terms &amp; Accept
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             </div>
           )}
 
           {/* 2. Needs Follow-up Clarification */}
           {result.status === 'needs_followup' && (
-            <div className="glass-card p-8 rounded-2xl space-y-6">
-              <div className="flex items-center space-x-3 border-b border-[#E5E7EB] pb-4">
-                <div className="bg-[#FFFBEB] p-2 rounded-xl border border-[#FDE68A]">
-                  <AlertCircle className="h-6 w-6 text-[#D97706]" />
+            <div className="eco-card p-8 space-y-6">
+              <div className="flex items-center gap-3 pb-4" style={{ borderBottom: '1px solid var(--eco-border)' }}>
+                <div className="p-2 rounded-md" style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)' }}>
+                  <AlertCircle className="h-6 w-6" style={{ color: 'var(--color-warning-mid)' }} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>AI Clarification Requested</h3>
-                  <span className="text-[10px] font-bold text-[#92400E] uppercase tracking-wide">
+                  <h3 className="font-display font-bold" style={{ color: 'var(--eco-text)' }}>AI Clarification Requested</h3>
+                  <span className="tracking-overline text-[10px] font-bold" style={{ color: 'var(--color-warning)' }}>
                     Scout Confidence: {(result.classification.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#FFFBEB] p-4 rounded-xl border border-[#FDE68A] text-sm text-[#374151] italic">
+              <div className="p-4 rounded-md text-sm italic" style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', color: 'var(--eco-text-2)' }}>
                 &ldquo;{result.classification.followupQuestion}&rdquo;
               </div>
 
-              <p className="text-xs text-[#6B7280]">
+              <p className="text-xs" style={{ color: 'var(--eco-text-3)' }}>
                 To process your submission accurately, please refine your description above to answer this question.
               </p>
 
               <button
                 onClick={() => handleRefineDescription(result.classification.followupQuestion)}
-                className="w-full bg-white hover:bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB] rounded-xl py-3 text-sm font-semibold transition-all shadow-sm flex items-center justify-center"
+                className="w-full rounded-md py-3 text-sm font-semibold border transition-all"
+                style={{ background: 'var(--eco-surface)', borderColor: 'var(--eco-border)', color: 'var(--eco-text-2)' }}
               >
                 Refine Description
               </button>
@@ -643,27 +649,28 @@ export default function SubmitSurplus() {
 
           {/* 3. Hazard Detected Block */}
           {result.status === 'hazard_detected' && (
-            <div className="glass-card p-8 rounded-2xl space-y-6 text-center">
+            <div className="eco-card p-8 space-y-6 text-center">
               <div className="flex justify-center">
-                <div className="bg-[#FEF2F2] p-4 rounded-full border border-[#FECACA]">
-                  <ShieldAlert className="h-12 w-12 text-[#DC2626]" />
+                <div className="p-4 rounded-full" style={{ background: 'var(--color-error-bg)', border: '1px solid var(--color-error-border)' }}>
+                  <ShieldAlert className="h-12 w-12" style={{ color: 'var(--color-error-mid)' }} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Material Submission Rejected</h3>
-                <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
+                <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>Material Submission Rejected</h3>
+                <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
                   The Scout Agent flagged this material description as hazardous, regulated, or not within our approved non-hazardous scope.
                 </p>
               </div>
 
-              <div className="bg-[#FEF2F2] p-4 rounded-xl border border-[#FECACA] text-left text-xs text-[#991B1B]">
+              <div className="p-4 rounded-md text-left text-xs" style={{ background: 'var(--color-error-bg)', border: '1px solid var(--color-error-border)', color: 'var(--color-error)' }}>
                 <strong>Deterministic Hazard Block:</strong> Materials classified outside the six permitted categories or containing chemical/toxic markers are immediately blocked from matching to guarantee safety.
               </div>
 
               <button
                 onClick={() => { setPipelineStatus('idle'); setResult(null); }}
-                className="w-full bg-white hover:bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB] rounded-xl py-3 text-sm font-semibold transition-colors shadow-sm"
+                className="w-full rounded-md py-3 text-sm font-semibold border transition-all"
+                style={{ background: 'var(--eco-surface)', borderColor: 'var(--eco-border)', color: 'var(--eco-text-2)' }}
               >
                 Submit a Different Material
               </button>
@@ -672,27 +679,27 @@ export default function SubmitSurplus() {
 
           {/* 4. No Candidate Match Found */}
           {result.status === 'no_match_found' && (
-            <div className="glass-card p-8 rounded-2xl space-y-6 text-center">
+            <div className="eco-card p-8 space-y-6 text-center">
               <div className="flex justify-center">
-                <div className="bg-[#F3F4F6] p-4 rounded-full border border-[#E5E7EB]">
-                  <Search className="h-12 w-12 text-[#9CA3AF]" />
+                <div className="p-4 rounded-full" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)' }}>
+                  <Search className="h-12 w-12" style={{ color: 'var(--eco-text-3)' }} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>No Nearby Candidates</h3>
-                <p className="text-sm text-[#4B5563] max-w-sm mx-auto">
-                  Your material was classified as <strong className="text-[#374151]">{result.classification.primaryCategory.replace('_', ' ')}</strong>, but the Alchemist Agent could not discover compatible reuse businesses within a 15km radius.
+                <h3 className="font-display text-xl font-bold" style={{ color: 'var(--eco-text)' }}>No Nearby Candidates</h3>
+                <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--eco-text-2)' }}>
+                  Your material was classified as <strong style={{ color: 'var(--eco-text)' }}>{result.classification.primaryCategory.replace('_', ' ')}</strong>, but the Alchemist Agent could not discover compatible reuse businesses within a 15km radius.
                 </p>
               </div>
 
-              <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] text-left text-xs text-[#6B7280] leading-relaxed">
+              <div className="p-4 rounded-md text-left text-xs leading-relaxed" style={{ background: 'var(--eco-surface-2)', border: '1px solid var(--eco-border)', color: 'var(--eco-text-2)' }}>
                 We have saved your submission. Once a compatible consumer business registers in your area, our engine will automatically evaluate the match.
               </div>
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-sm"
+                className="eco-btn-primary w-full py-3 text-sm"
               >
                 Back to Dashboard
               </button>
@@ -703,3 +710,17 @@ export default function SubmitSurplus() {
     </div>
   );
 }
+
+export default function SubmitSurplusMaterialPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader2 className="h-8 w-8 anim-spin text-[var(--eco-accent)]" />
+        <span className="text-xs font-semibold text-[var(--eco-text-3)]">Loading form...</span>
+      </div>
+    }>
+      <SubmitSurplusContent />
+    </Suspense>
+  );
+}
+

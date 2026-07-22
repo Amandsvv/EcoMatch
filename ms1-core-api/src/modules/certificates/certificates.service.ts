@@ -91,7 +91,16 @@ export class CertificatesService {
   }
 
   async getCertificateByMatchId(matchId: string) {
-    const certificate = await this.repository.getCertificateByMatchId(matchId);
+    let certificate = await this.repository.getCertificateByMatchId(matchId);
+    if (!certificate) {
+      certificate = await this.repository.getCertificateById(matchId);
+    }
+    if (!certificate) {
+      const match = await this.repository.getMatchBySubmissionId(matchId);
+      if (match) {
+        certificate = await this.repository.getCertificateByMatchId(match.id);
+      }
+    }
     if (!certificate) {
       throw new AppError(ErrorCodes.CERTIFICATE_NOT_FOUND, 404, 'Certificate not found for this match');
     }

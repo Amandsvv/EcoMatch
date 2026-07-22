@@ -24,6 +24,10 @@ export async function request(path: string, options: RequestInit = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('ecomatch_token');
+      localStorage.removeItem('ecomatch_user');
+    }
     let errorData;
     try {
       errorData = await response.json();
@@ -60,7 +64,7 @@ export const api = {
   getMatch: (matchId: string) => request(`/matches/${matchId}`),
   getMatchBySubmission: (submissionId: string) => request(`/matches/submission/${submissionId}`),
   getMatchesForBusiness: (businessId: string) => request(`/matches/business/${businessId}`),
-  getMatches: () => request('/matches'),
+  getDealEvents: (matchId: string) => request(`/matches/${matchId}/events`),
   draftMessage: (matchId: string) => request(`/matches/${matchId}/draft`, { method: 'POST' }),
 
   // Outreach (Accept/Reject Match Proposal)

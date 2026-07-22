@@ -4,22 +4,21 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  Recycle, 
-  ShieldAlert, 
-  Truck, 
-  FileText, 
-  TrendingUp, 
-  ListOrdered, 
-  LogOut, 
-  Check, 
-  AlertTriangle, 
-  Loader2, 
+import {
+  ShieldAlert,
+  Truck,
+  FileText,
+  Building,
+  Check,
+  AlertTriangle,
+  Loader2,
   PlusCircle,
-  Clock
+  Activity,
+  ExternalLink,
+  LogOut,
 } from 'lucide-react';
 
-export default function AdminConsole() {
+export default function AdminConsoleDashboardPage() {
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -28,7 +27,6 @@ export default function AdminConsole() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Admin states
   const [verifications, setVerifications] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [haulers, setHaulers] = useState<any[]>([]);
@@ -47,7 +45,6 @@ export default function AdminConsole() {
       router.push('/dashboard');
       return;
     }
-    // Guard: only fetch once per mount, not on every state change
     if (hasFetched.current) return;
     hasFetched.current = true;
     fetchAdminData();
@@ -106,270 +103,277 @@ export default function AdminConsole() {
       setHaulerArea('');
       await fetchAdminData();
     } catch (err: any) {
-      setError(err.message || 'Failed to create hauler');
+      setError(err.message || 'Failed to add hauler');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (authLoading || loading) {
+  if (loading || authLoading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-[#F9FAFB] min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader2 className="h-8 w-8 anim-spin text-[var(--eco-accent)]" />
+        <span className="text-xs font-semibold text-[var(--eco-text-3)]">Loading admin console...</span>
       </div>
     );
   }
 
-  const tabCls = (tab: string) =>
-    `flex items-center space-x-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-      activeTab === tab
-        ? 'bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8]'
-        : 'text-[#4B5563] hover:text-[#111827] hover:bg-[#F3F4F6] border border-transparent'
-    }`;
-
-  const inputCls = "w-full bg-white border border-[#D1D5DB] focus:border-[#0F6FE8] rounded-xl px-3 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] outline-none transition-all";
-
   return (
-    <div className="flex-1 flex bg-[#F9FAFB] text-[#111827] min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-[#E5E7EB] bg-white flex flex-col justify-between shrink-0 shadow-sm">
-        <div>
-          <div className="h-16 border-b border-[#E5E7EB] px-6 flex items-center space-x-2.5">
-            <div className="bg-[#EFF6FF] p-2 rounded-lg border border-[#BFDBFE]">
-              <Recycle className="h-5 w-5 text-[#0F6FE8]" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>
-              EcoMatch
-            </span>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Admin Header */}
+      <div className="eco-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-[var(--color-error-mid)]" />
+            <h2 className="text-xl font-bold text-[var(--eco-text)] font-display">
+              System Admin Console
+            </h2>
           </div>
-
-          <div className="p-6 border-b border-[#E5E7EB]">
-            <div className="text-sm font-semibold text-[#111827]">System Admin</div>
-            <div className="text-xs text-[#6B7280] truncate mt-0.5">{user?.email}</div>
-          </div>
-
-          <nav className="p-4 space-y-1">
-            <button onClick={() => setActiveTab('verifications')} className={tabCls('verifications')}>
-              <FileText className="h-5 w-5" />
-              <span>Verifications Queue</span>
-            </button>
-            <button onClick={() => setActiveTab('events')} className={tabCls('events')}>
-              <ListOrdered className="h-5 w-5" />
-              <span>Audit logs / Events</span>
-            </button>
-            <button onClick={() => setActiveTab('haulers')} className={tabCls('haulers')}>
-              <Truck className="h-5 w-5" />
-              <span>Haulers Management</span>
-            </button>
-            <button onClick={() => setActiveTab('businesses')} className={tabCls('businesses')}>
-              <TrendingUp className="h-5 w-5" />
-              <span>Registered Businesses</span>
-            </button>
-          </nav>
+          <p className="text-xs text-[var(--eco-text-2)]">
+            Manage verification queues, review system events, register haulers, and audit active businesses.
+          </p>
         </div>
-
-        <div className="p-4 border-t border-[#E5E7EB]">
-          <button
-            onClick={logout}
-            className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-[#6B7280] hover:text-[#991B1B] hover:bg-[#FEF2F2] transition-all group"
-          >
-            <LogOut className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-[#E5E7EB] bg-white flex items-center justify-between px-8 shadow-sm">
-          <h1 className="text-lg font-bold text-[#111827] uppercase tracking-wider" style={{ fontFamily: 'var(--font-heading)' }}>
-            {activeTab === 'verifications' ? 'Verification Queue' : activeTab === 'events' ? 'Deal Audit Logs' : activeTab === 'haulers' ? 'Haulers Registry' : 'Business Profiles'}
-          </h1>
-          <span className="text-xs text-[#9CA3AF]">Marketplace Supervisor Console</span>
-        </header>
-
-        <main className="flex-1 p-8 overflow-y-auto">
-          {error && (
-            <div className="mb-6 bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center space-x-3 text-[#991B1B] text-sm">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Tab 1: Verifications Queue */}
-          {activeTab === 'verifications' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">Pending Evidence Approvals</h3>
-              {verifications.length === 0 ? (
-                <div className="bg-white border border-dashed border-[#E5E7EB] rounded-2xl p-12 text-center text-[#9CA3AF] text-sm">
-                  Verification queue is empty. No pending business evidence uploads.
-                </div>
-              ) : (
-                <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden divide-y divide-[#F3F4F6] shadow-sm">
-                  {verifications.map((ver) => (
-                    <div key={ver.id} className="p-6 flex items-center justify-between gap-4 hover:bg-[#F9FAFB] transition-colors">
-                      <div>
-                        <span className="text-[10px] font-mono text-[#9CA3AF] block uppercase">VERIFICATION RECORD ID: {ver.id}</span>
-                        <div className="text-sm font-semibold text-[#111827] mt-1">Match ID: {ver.matchId}</div>
-                        <div className="text-xs text-[#4B5563] mt-0.5">Evidence Type: <span className="font-mono text-[#374151] capitalize">{ver.evidenceType}</span></div>
-                        <div className="text-xs text-[#4B5563]">Business ID: {ver.businessId}</div>
-                      </div>
-                      <div>
-                        {!ver.confirmed ? (
-                          <button
-                            onClick={() => handleConfirmVerification(ver.matchId, ver.businessId)}
-                            disabled={submitting}
-                            className="bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center disabled:opacity-50"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Confirm Evidence
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[#166534] font-bold bg-[#F0FDF4] border border-[#BBF7D0] px-3 py-1 rounded-full">Approved</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab 2: Audit Logs / Deal Events */}
-          {activeTab === 'events' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">System Event Feed</h3>
-              <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden divide-y divide-[#F3F4F6] shadow-sm">
-                {events.length === 0 ? (
-                  <div className="p-8 text-center text-[#9CA3AF] text-sm">No events logged in the database yet.</div>
-                ) : (
-                  events.map((ev) => (
-                    <div key={ev.id} className="p-5 flex items-start space-x-4 hover:bg-[#F9FAFB] transition-colors">
-                      <div className="bg-[#EFF6FF] p-2 rounded-lg border border-[#BFDBFE] mt-0.5">
-                        <Clock className="h-4 w-4 text-[#0F6FE8]" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-bold text-[#1D4ED8] bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-0.5 rounded uppercase font-mono">{ev.eventType}</span>
-                          <span className="text-[10px] text-[#9CA3AF]">{new Date(ev.createdAt).toLocaleString()}</span>
-                        </div>
-                        <p className="text-xs text-[#374151] leading-relaxed">{ev.description}</p>
-                        <div className="text-[10px] text-[#9CA3AF] font-mono">Actor ID: {ev.actorId} | Match ID: {ev.matchId}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 3: Haulers Registry */}
-          {activeTab === 'haulers' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              
-              {/* Haulers List */}
-              <div className="md:col-span-2 space-y-4">
-                <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">Active Transport Partners</h3>
-                {haulers.length === 0 ? (
-                  <div className="bg-white border border-dashed border-[#E5E7EB] rounded-2xl p-12 text-center text-[#9CA3AF] text-sm">
-                    No haulers registered in system.
-                  </div>
-                ) : (
-                  <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden divide-y divide-[#F3F4F6] shadow-sm">
-                    {haulers.map((hl) => (
-                      <div key={hl.id} className="p-6 hover:bg-[#F9FAFB] transition-colors">
-                        <span className="text-[10px] font-mono text-[#9CA3AF] block uppercase">HAULER ID: {hl.id}</span>
-                        <div className="text-sm font-bold text-[#111827] mt-1">{hl.name}</div>
-                        <div className="text-xs text-[#4B5563] mt-1">Service Area: <span className="text-[#374151] font-medium">{hl.serviceArea}</span></div>
-                        <div className="text-xs text-[#4B5563]">Contact details: <span className="text-[#374151] font-medium">{hl.contact}</span></div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Add Hauler Form */}
-              <div className="bg-white border border-[#E5E7EB] p-6 rounded-2xl h-fit space-y-4 shadow-sm">
-                <h3 className="text-sm font-bold text-[#111827] uppercase tracking-wider border-b border-[#E5E7EB] pb-2" style={{ fontFamily: 'var(--font-heading)' }}>Add Transport Hauler</h3>
-                
-                <form onSubmit={handleAddHauler} className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] text-[#6B7280] font-semibold mb-1 uppercase">HAULER COMPANY NAME</label>
-                    <input
-                      type="text"
-                      value={haulerName}
-                      onChange={(e) => setHaulerName(e.target.value)}
-                      placeholder="Waste Logistics Corp"
-                      className={inputCls}
-                      disabled={submitting}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[#6B7280] font-semibold mb-1 uppercase">CONTACT CHANNELS</label>
-                    <input
-                      type="text"
-                      value={haulerContact}
-                      onChange={(e) => setHaulerContact(e.target.value)}
-                      placeholder="dispatch@wastelog.com, 555-9011"
-                      className={inputCls}
-                      disabled={submitting}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[#6B7280] font-semibold mb-1 uppercase">SERVICE ZIP / AREA</label>
-                    <input
-                      type="text"
-                      value={haulerArea}
-                      onChange={(e) => setHaulerArea(e.target.value)}
-                      placeholder="New York Metropolitan Area"
-                      className={inputCls}
-                      disabled={submitting}
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-2.5 text-xs font-semibold transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
-                  >
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                      <>
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        Create Hauler
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Tab 4: Registered Businesses */}
-          {activeTab === 'businesses' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">Registered SME Profiles</h3>
-              {businesses.length === 0 ? (
-                <div className="p-8 text-center text-[#9CA3AF] text-sm">No businesses registered.</div>
-              ) : (
-                <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden divide-y divide-[#F3F4F6] shadow-sm">
-                  {businesses.map((bz) => (
-                    <div key={bz.id} className="p-6 hover:bg-[#F9FAFB] transition-colors">
-                      <span className="text-[10px] font-mono text-[#9CA3AF] block uppercase">BUSINESS ID: {bz.id}</span>
-                      <div className="text-sm font-bold text-[#111827] mt-1">{bz.name}</div>
-                      <div className="text-xs text-[#4B5563] mt-1 capitalize">Type: <span className="text-[#374151] font-medium">{bz.type.replace('_', ' ')}</span></div>
-                      <div className="text-xs text-[#4B5563]">Location coordinates: <span className="text-[#374151] font-mono">({bz.lat}, {bz.lng})</span></div>
-                      <div className="text-xs text-[#4B5563]">Street address: <span className="text-[#374151] font-medium">{bz.address}</span></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </main>
+        <button
+          onClick={logout}
+          className="eco-btn-outline text-xs py-2 px-4 inline-flex items-center gap-2 shrink-0 self-start sm:self-auto text-[var(--color-error-mid)] border-[var(--color-error-border)] hover:bg-[var(--color-error-bg)]"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out</span>
+        </button>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-[var(--color-error-bg)] border border-[var(--color-error-border)] flex items-center gap-3 text-[var(--color-error)] text-sm">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-[var(--eco-border)] overflow-x-auto pb-1">
+        {[
+          { id: 'verifications', label: 'Verification Queue', icon: FileText, count: verifications.length },
+          { id: 'events', label: 'Audit Logs', icon: Activity, count: events.length },
+          { id: 'haulers', label: 'Certified Haulers', icon: Truck, count: haulers.length },
+          { id: 'businesses', label: 'Businesses', icon: Building, count: businesses.length },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 border-b-2 whitespace-nowrap ${
+                isActive
+                  ? 'border-[var(--eco-accent)] text-[var(--eco-accent)] bg-[var(--eco-surface)]'
+                  : 'border-transparent text-[var(--eco-text-2)] hover:text-[var(--eco-text)]'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-[var(--eco-surface-2)] text-[var(--eco-text-2)]">
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab 1: Verifications Queue */}
+      {activeTab === 'verifications' && (
+        <div className="eco-card overflow-hidden">
+          <div className="p-4 border-b border-[var(--eco-border)] font-bold text-xs tracking-overline text-[var(--eco-text-2)] font-display">
+            Pending Transfer Proof Approvals
+          </div>
+          {verifications.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[var(--eco-text-3)]">
+              No pending verifications in queue.
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--eco-border)]">
+              {verifications.map((v: any) => (
+                <div key={v.id} className="p-5 hover:bg-[var(--eco-surface-2)] transition-colors space-y-3">
+                  {/* Header Tag Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--eco-border)] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--eco-surface)] text-[var(--eco-text-2)] border border-[var(--eco-border)] font-mono">
+                        Match ID: {v.matchId}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded badge-info capitalize">
+                        {v.evidenceType?.replace('_', ' ') || 'Proof'} Evidence
+                      </span>
+                    </div>
+
+                    <div>
+                      {v.confirmed ? (
+                        <span className="badge-success">Confirmed</span>
+                      ) : (
+                        <button
+                          onClick={() => handleConfirmVerification(v.matchId, v.businessId)}
+                          disabled={submitting}
+                          className="eco-btn-primary text-xs py-1.5 px-3"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Approve Proof
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Side-by-Side Business Pairing Box */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--eco-surface)] p-3 rounded-lg border border-[var(--eco-border)] text-xs">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[var(--eco-text-3)] tracking-overline block">SOURCE BUSINESS</span>
+                      <span className="font-bold text-[var(--eco-text)] block">{v.sourceBusinessName || 'Source Business'}</span>
+                      <span className="text-[10px] text-[var(--eco-text-3)] font-mono truncate block">ID: {v.sourceBusinessId || 'N/A'}</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[var(--eco-text-3)] tracking-overline block">TARGET BUSINESS</span>
+                      <span className="font-bold text-[var(--eco-text)] block">{v.targetBusinessName || 'Target Business'}</span>
+                      <span className="text-[10px] text-[var(--eco-text-3)] font-mono truncate block">ID: {v.targetBusinessId || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Proof Link */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-[var(--eco-text-2)]">
+                      Proof submitted by: <strong className="text-[var(--eco-text)]">{v.submittingBusinessName || v.businessId}</strong>
+                    </span>
+                    {v.evidenceUrl && (
+                      <a
+                        href={v.evidenceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[var(--eco-accent)] font-semibold hover:underline text-xs inline-flex items-center gap-1"
+                      >
+                        <span>View Evidence Proof</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Events Log */}
+      {activeTab === 'events' && (
+        <div className="eco-card overflow-hidden">
+          <div className="p-4 border-b border-[var(--eco-border)] font-bold text-xs tracking-overline text-[var(--eco-text-2)] font-display">
+            System Event Monitoring Audit
+          </div>
+          {events.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[var(--eco-text-3)]">
+              No system events logged.
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--eco-border)]">
+              {events.map((e: any) => (
+                <div key={e.id} className="p-4 hover:bg-[var(--eco-surface-2)] transition-colors flex items-center justify-between gap-4 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-[var(--eco-text)] capitalize">{e.eventType.replace('_', ' ')}</span>
+                    <p className="text-[var(--eco-text-2)]">{e.description || 'No description details'}</p>
+                  </div>
+                  <span className="text-[10px] text-[var(--eco-text-3)]">
+                    {new Date(e.createdAt).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Haulers */}
+      {activeTab === 'haulers' && (
+        <div className="space-y-6">
+          <div className="eco-card p-6 space-y-4">
+            <h3 className="text-sm font-bold text-[var(--eco-text)] tracking-overline font-display">
+              Register Logistics Hauler
+            </h3>
+            <form onSubmit={handleAddHauler} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                type="text"
+                value={haulerName}
+                onChange={(e) => setHaulerName(e.target.value)}
+                placeholder="Hauler Company Name"
+                className="eco-input text-xs"
+                required
+              />
+              <input
+                type="text"
+                value={haulerContact}
+                onChange={(e) => setHaulerContact(e.target.value)}
+                placeholder="Contact Phone / Email"
+                className="eco-input text-xs"
+                required
+              />
+              <input
+                type="text"
+                value={haulerArea}
+                onChange={(e) => setHaulerArea(e.target.value)}
+                placeholder="Service Area / City"
+                className="eco-input text-xs"
+                required
+              />
+              <button type="submit" disabled={submitting} className="eco-btn-primary text-xs py-2 sm:col-span-3">
+                <PlusCircle className="h-4 w-4" /> Add Logistics Hauler
+              </button>
+            </form>
+          </div>
+
+          <div className="eco-card overflow-hidden">
+            <div className="p-4 border-b border-[var(--eco-border)] font-bold text-xs tracking-overline text-[var(--eco-text-2)] font-display">
+              Certified Logistics Haulers
+            </div>
+            {haulers.length === 0 ? (
+              <div className="p-8 text-center text-xs text-[var(--eco-text-3)]">
+                No haulers registered.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--eco-border)]">
+                {haulers.map((h: any) => (
+                  <div key={h.id} className="p-4 hover:bg-[var(--eco-surface-2)] transition-colors flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-[var(--eco-text)]">{h.name}</span>
+                      <p className="text-[var(--eco-text-2)]">{h.contact} • Area: {h.serviceArea}</p>
+                    </div>
+                    <span className="badge-success">Active Hauler</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Businesses */}
+      {activeTab === 'businesses' && (
+        <div className="eco-card overflow-hidden">
+          <div className="p-4 border-b border-[var(--eco-border)] font-bold text-xs tracking-overline text-[var(--eco-text-2)] font-display">
+            Registered Marketplace Businesses
+          </div>
+          {businesses.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[var(--eco-text-3)]">
+              No registered businesses found.
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--eco-border)]">
+              {businesses.map((b: any) => (
+                <div key={b.id} className="p-4 hover:bg-[var(--eco-surface-2)] transition-colors flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-[var(--eco-text)]">{b.businessName}</span>
+                    <p className="text-[var(--eco-text-2)]">{b.email} • Category: {b.businessType}</p>
+                  </div>
+                  <span className="badge-primary">Verified Account</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -61,23 +61,26 @@ export class VerificationService {
   }
 
 
-  async confirmVerification(matchId: string, userId: string) {
+  async confirmVerification(matchId: string, userId: string, userRole?: string, targetBusinessId?: string) {
     const match = await this.repository.getMatchById(matchId);
     if (!match) {
       throw new AppError(ErrorCodes.MATCH_NOT_FOUND, 404, 'Match not found');
     }
 
-    // Resolve businessId server-side from the authenticated user — never trust client-sent ID
-    const business = await this.repository.getBusinessByMatchAndUserId(match, userId);
-    if (!business) {
-      throw new AppError(
-        ErrorCodes.FORBIDDEN,
-        403,
-        'Not authorized to confirm verification for this match'
-      );
+    let businessId: string;
+    if (userRole === 'admin') {
+      businessId = targetBusinessId || match.sourceBusinessId;
+    } else {
+      const business = await this.repository.getBusinessByMatchAndUserId(match, userId);
+      if (!business) {
+        throw new AppError(
+          ErrorCodes.FORBIDDEN,
+          403,
+          'Not authorized to confirm verification for this match'
+        );
+      }
+      businessId = business.id;
     }
-
-    const businessId = business.id;
 
     const record = await this.repository.getVerificationRecord(matchId, businessId);
     if (!record) {

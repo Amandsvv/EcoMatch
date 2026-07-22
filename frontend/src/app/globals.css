@@ -1,219 +1,251 @@
 @import "tailwindcss";
 
-/* ─── Design tokens (WCAG AA light-mode palette) ───────────────────────────── */
-/*
-  CONTRAST CHECKS (against white/near-white backgrounds):
-  --color-text       #111827  on #F9FAFB → 17.7:1 ✓ AAA
-  --color-text-muted #4B5563  on #F9FAFB →  7.1:1 ✓ AA
-  --color-text-subtle #6B7280 on #F9FAFB →  4.6:1 ✓ AA (body)
-  --color-primary    #0F6FE8  on white   →  4.61:1 ✓ AA (large/bold 18px+)
-                               on #EFF6FF →  4.2:1  — used only as large text there ✓
-  --color-primary-dark #0A52B0 on white  →  8.6:1  ✓ AA small
-  --color-success    #166534  on #F0FDF4 → 10.2:1 ✓ AA
-  --color-warning    #92400E  on #FFFBEB →  7.3:1 ✓ AA
-  --color-error      #991B1B  on #FEF2F2 →  8.5:1 ✓ AA
-  --color-completion #4338CA  on #EEF2FF →  7.4:1 ✓ AA
-*/
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — LIGHT WARM CREAM THEME (MATCHING REPLICA)
+═══════════════════════════════════════════════════════════════ */
 :root {
-  /* Backgrounds */
-  --bg-page:         #F9FAFB;   /* near-white */
-  --bg-surface:      #FFFFFF;   /* card white */
-  --bg-subtle:       #F3F4F6;   /* muted surface */
-  --bg-inset:        #E5E7EB;   /* input/inset areas */
+  /* Brand palette */
+  --eco-bg:             #F4F3F0;
+  --eco-surface:        #FFFFFF;
+  --eco-surface-2:      #EBE9E4;
+  --eco-border:         #E2DFD7;
+  --eco-border-strong:  #C7C4BC;
 
-  /* Borders */
-  --border-default:  #E5E7EB;
-  --border-strong:   #D1D5DB;
+  /* Primary Deep Forest Green */
+  --eco-green:          #1B4332;
+  --eco-green-hover:    #2D6A4F;
+  --eco-green-light:    #40916C;
+  --eco-green-pale:     #D8F3DC;
+  --eco-green-bg:       #EBF5EF;
+
+  /* Accent Terracotta / Coral */
+  --eco-accent:         #E07A5F;
+  --eco-accent-bg:      #FDF2EF;
 
   /* Text */
-  --text-primary:    #111827;   /* headings */
-  --text-muted:      #4B5563;   /* body copy */
-  --text-subtle:     #6B7280;   /* labels, meta */
-  --text-disabled:   #9CA3AF;
+  --eco-text:           #0A0F0D;
+  --eco-text-2:         #4A524D;
+  --eco-text-3:         #8E9792;
 
-  /* Accent — Primary (blue) */
-  --color-primary:      #0F6FE8;
-  --color-primary-dark: #0A52B0;
-  --color-primary-bg:   #EFF6FF;
-  --color-primary-text: #1D4ED8; /* dark enough for small text on white */
-
-  /* Success (green) — agreed / verified */
-  --color-success:      #166534;
-  --color-success-mid:  #16A34A;
-  --color-success-bg:   #F0FDF4;
+  /* Semantic status colors */
+  --color-success:       #166534;
+  --color-success-bg:    #F0FDF4;
   --color-success-border:#BBF7D0;
-
-  /* Warning (amber) — needs review / low confidence */
-  --color-warning:      #92400E;
-  --color-warning-mid:  #D97706;
-  --color-warning-bg:   #FFFBEB;
+  --color-warning:       #92400E;
+  --color-warning-bg:    #FFFBEB;
   --color-warning-border:#FDE68A;
-
-  /* Error (red) — hazard / failed */
-  --color-error:        #991B1B;
-  --color-error-mid:    #DC2626;
-  --color-error-bg:     #FEF2F2;
-  --color-error-border: #FECACA;
-
-  /* Completion (indigo) — verified impact certificate */
-  --color-completion:      #4338CA;
-  --color-completion-bg:   #EEF2FF;
-  --color-completion-border:#C7D2FE;
+  --color-error:         #991B1B;
+  --color-error-bg:      #FEF2F2;
+  --color-error-border:  #FECACA;
+  --color-info:          #1D4ED8;
+  --color-info-bg:       #EFF6FF;
+  --color-info-border:   #BFDBFE;
 
   /* Typography */
-  --font-heading: 'Poppins', system-ui, sans-serif;
-  --font-body:    'Roboto', system-ui, sans-serif;
+  --font-heading: 'Cabinet Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body:    'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-  /* Radius & shadow */
-  --radius-sm:   0.5rem;
-  --radius-md:   0.75rem;
-  --radius-lg:   1rem;
-  --radius-xl:   1.5rem;
-  --shadow-sm:   0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.05);
-  --shadow-md:   0 4px 12px 0 rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.05);
-  --shadow-lg:   0 8px 24px 0 rgba(0,0,0,0.10), 0 4px 10px -3px rgba(0,0,0,0.06);
-  --shadow-focus:0 0 0 3px rgba(15,111,232,0.25);
+  /* Shape & Shadows */
+  --radius-sm:  0.375rem;
+  --radius-md:  0.5rem;
+  --radius-lg:  0.75rem;
+  --radius-xl:  1rem;
+
+  --shadow-sm:  0 1px 3px rgba(10,15,13,0.05), 0 1px 2px rgba(10,15,13,0.03);
+  --shadow-md:  0 4px 14px rgba(10,15,13,0.06), 0 2px 6px rgba(10,15,13,0.04);
+  --shadow-lg:  0 10px 30px rgba(10,15,13,0.08);
 }
 
-/* ─── @theme passthrough for Tailwind v4 ───────────────────────────────────── */
 @theme inline {
-  --color-background: var(--bg-page);
-  --color-foreground: var(--text-primary);
+  --color-background: var(--eco-bg);
+  --color-foreground: var(--eco-text);
   --font-sans: var(--font-body);
 }
 
-/* ─── Base styles ───────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+/* ═══════════════════════════════════════════════════════════════
+   BASE RESET & TYPOGRAPHY
+═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+* { border-color: var(--eco-border); }
 
-* {
-  border-color: var(--border-default);
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background-color: var(--bg-page);
-  color: var(--text-primary);
+  margin: 0;
+  background: var(--eco-bg);
+  color: var(--eco-text);
   font-family: var(--font-body);
-  font-size: 0.9375rem;        /* 15px baseline */
+  font-size: 0.9375rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  color: var(--text-primary);
-  line-height: 1.25;
+  font-family: 'Cabinet Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--eco-text);
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+h1, h2 {
+  font-family: 'Cabinet Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 500 !important;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* Overline Label (Terracotta/Coral Uppercase) */
+.tracking-overline {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
   font-weight: 700;
+  color: var(--eco-accent);
 }
 
-/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar        { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: var(--bg-subtle); }
-::-webkit-scrollbar-thumb  { background: var(--border-strong); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
-
-/* ─── Selection ─────────────────────────────────────────────────────────────── */
-::selection {
-  background: rgba(15,111,232,0.15);
-  color: var(--text-primary);
+.font-display { 
+  font-family: 'Cabinet Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; 
 }
 
-/* ─── Card ──────────────────────────────────────────────────────────────────── */
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+/* ═══════════════════════════════════════════════════════════════
+   CARDS & CONTAINERS
+═══════════════════════════════════════════════════════════════ */
+.eco-card, .glass-card, .card {
+  background: var(--eco-surface);
+  border: 1px solid var(--eco-border);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
-}
-
-/* Legacy alias — pages use glass-card */
-.glass-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.glass-card:hover {
-  box-shadow: var(--shadow-md);
-}
-
-/* ─── Inputs ─────────────────────────────────────────────────────────────────── */
-.input {
-  background: var(--bg-surface);
-  border: 1.5px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  padding: 0.625rem 0.875rem;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  outline: none;
-  width: 100%;
-}
-
-.input::placeholder { color: var(--text-disabled); }
-
-input, select, textarea {
-  font-family: var(--font-body);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--color-primary) !important;
-  box-shadow: var(--shadow-focus) !important;
-}
-
-/* ─── Primary button ─────────────────────────────────────────────────────────── */
-.btn-primary {
-  background: var(--color-primary);
+/* ═══════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════ */
+.eco-btn-primary, .btn-primary {
+  background: var(--eco-green);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.625rem 1.25rem;
-  font-family: var(--font-body);
+  padding: 0.65rem 1.25rem;
+  font-family: var(--font-heading);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
-  box-shadow: 0 2px 6px 0 rgba(15,111,232,0.25);
-  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.eco-btn-primary:hover, .btn-primary:hover {
+  background: var(--eco-green-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(27,67,50,0.15);
+}
+
+.eco-btn-outline {
+  background: var(--eco-surface);
+  color: var(--eco-text);
+  border: 1.5px solid var(--eco-border-strong);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.25rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
 }
 
-.btn-primary:hover {
-  background: var(--color-primary-dark);
-  box-shadow: 0 4px 14px 0 rgba(15,111,232,0.35);
-  transform: translateY(-1px);
+.eco-btn-outline:hover {
+  background: var(--eco-surface-2);
+  border-color: var(--eco-text-2);
 }
 
-.btn-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px 0 rgba(15,111,232,0.2);
+/* ═══════════════════════════════════════════════════════════════
+   INPUTS & FORMS
+═══════════════════════════════════════════════════════════════ */
+.eco-input, input, select, textarea {
+  background: var(--eco-surface);
+  border: 1.5px solid var(--eco-border);
+  border-radius: var(--radius-md);
+  color: var(--eco-text);
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  width: 100%;
 }
 
-.btn-primary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--eco-green) !important;
+  box-shadow: 0 0 0 3px rgba(27,67,50,0.15) !important;
 }
 
-/* ─── Status badge helpers ───────────────────────────────────────────────────── */
-.badge-success    { background:var(--color-success-bg);    color:var(--color-success);    border:1px solid var(--color-success-border); }
-.badge-warning    { background:var(--color-warning-bg);    color:var(--color-warning);    border:1px solid var(--color-warning-border); }
-.badge-error      { background:var(--color-error-bg);      color:var(--color-error);      border:1px solid var(--color-error-border); }
-.badge-completion { background:var(--color-completion-bg); color:var(--color-completion); border:1px solid var(--color-completion-border); }
-.badge-primary    { background:var(--color-primary-bg);    color:var(--color-primary-text);border:1px solid #BFDBFE; }
+/* ═══════════════════════════════════════════════════════════════
+   STATUS BADGES
+═══════════════════════════════════════════════════════════════ */
+.badge-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success-border); border-radius: 9999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid var(--color-warning-border); border-radius: 9999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+.badge-error   { background: var(--color-error-bg); color: var(--color-error); border: 1px solid var(--color-error-border); border-radius: 9999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+.badge-info    { background: var(--color-info-bg); color: var(--color-info); border: 1px solid var(--color-info-border); border-radius: 9999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+.badge-muted   { background: var(--eco-surface-2); color: var(--eco-text-3); border: 1px solid var(--eco-border); border-radius: 9999px; padding: 0.2rem 0.65rem; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CATEGORY CARDS (IMAGE TOP + WHITE FOOTER)
+═══════════════════════════════════════════════════════════════ */
+.category-card-replica {
+  background: var(--eco-surface);
+  border: 1px solid var(--eco-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.category-card-replica:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.category-card-replica img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.category-card-replica-footer {
+  padding: 1rem 1.25rem;
+  background: var(--eco-surface);
+}
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+.anim-spin { animation: spin 1.2s linear infinite; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT MEDIA STYLES (CLEAN PDF GENERATION WITHOUT NAVBAR)
+═══════════════════════════════════════════════════════════════ */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  nav, header, footer, .print-hidden {
+    display: none !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 0.5cm;
+  }
+}

@@ -31,8 +31,8 @@ export class VerificationController {
   confirmVerification = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { matchId } = req.params;
-      // businessId is resolved server-side from JWT — not trusted from request body
-      const result = await this.service.confirmVerification(matchId, req.userId!);
+      const { businessId } = req.body || {};
+      const result = await this.service.confirmVerification(matchId, req.userId!, req.userRole, businessId);
       logger.info('Verification confirmed', {
         traceId: req.traceId,
         matchId,

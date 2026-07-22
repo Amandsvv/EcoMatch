@@ -16,10 +16,11 @@ import {
   DollarSign,
   Loader2,
   AlertTriangle,
-  Recycle
+  Recycle,
+  Leaf,
 } from 'lucide-react';
 
-export default function DealTracker({ params }: { params: Promise<{ id: string }> }) {
+export default function ActiveDealTrackerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const submissionId = resolvedParams.id;
   const { user } = useAuth();
@@ -77,57 +78,64 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
           throw err;
         }
       }
-      
-      const matchRecord = response.match;
-      setMatch(matchRecord);
+
+      setMatch(response.match);
       setDrafts(response.outreachDrafts || []);
-      setEvents(response.dealEvents || []);
 
-      // Fetch verifications
-      const verRecord = await api.getVerificationRecords(matchRecord.id);
-      setVerifications(verRecord || []);
+      const matchId = response.match.id;
 
-      // Fetch certificate if verified
-      if (matchRecord.status === 'verified') {
+      try {
+        const vers = await api.getVerificationRecords(matchId);
+        setVerifications(vers || []);
+      } catch {}
+
+      try {
+        const evs = await api.getDealEvents(matchId);
+        setEvents(evs || []);
+      } catch {}
+
+      if (response.match.status === 'verified') {
         try {
-          const cert = await api.getCertificate(matchRecord.id);
+          const cert = await api.getCertificate(matchId);
           setCertificate(cert);
-        } catch {
-          // No certificate issued yet or fetch failed
-        }
+        } catch {}
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load deal tracker data');
+      setError(err.message || 'Failed to load deal tracking data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUploadEvidence = async (e: React.FormEvent) => {
+  const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!match) return;
-    setError(null);
+    if (!match?.id || !evidenceUrl) return;
+
     setActionLoading(true);
+    setError(null);
     try {
-      await api.submitEvidence(match.id, { evidenceType, evidenceUrl });
-      await api.confirmVerification(match.id);
+      await api.submitEvidence(match.id, {
+        evidenceType,
+        evidenceUrl,
+      });
+      setEvidenceUrl('');
       await fetchDealData();
     } catch (err: any) {
-      setError(err.message || 'Failed to submit verification');
+      setError(err.message || 'Failed to submit transfer evidence');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleIssueCertificate = async () => {
-    if (!match) return;
-    setError(null);
+    if (!match?.id) return;
     setActionLoading(true);
+    setError(null);
     try {
       await api.issueCertificate(match.id);
       await fetchDealData();
     } catch (err: any) {
-      setError(err.message || 'Failed to issue impact certificate');
+      setError(err.message || 'Failed to trigger verification calculation');
     } finally {
       setActionLoading(false);
     }
@@ -135,8 +143,9 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F6FE8]" />
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader2 className="h-8 w-8 anim-spin text-[var(--eco-accent)]" />
+        <span className="text-xs font-semibold text-[var(--eco-text-3)]">Loading deal workflow...</span>
       </div>
     );
   }
@@ -146,217 +155,232 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
       <div className="space-y-6">
         <button
           onClick={() => router.push('/dashboard')}
-          className="inline-flex items-center text-sm text-[#4B5563] hover:text-[#111827] transition-colors"
+          className="inline-flex items-center text-xs font-semibold text-[var(--eco-text-2)] hover:text-[var(--eco-text)] gap-1.5"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </button>
-        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center space-x-3 text-[#991B1B]">
+        <div className="p-4 rounded-lg bg-[var(--color-error-bg)] border border-[var(--color-error-border)] flex items-center gap-3 text-[var(--color-error)] text-sm">
           <AlertTriangle className="h-5 w-5 shrink-0" />
-          <span>{error || 'Deal details could not be retrieved.'}</span>
+          <span>{error || 'Deal tracking record not found.'}</span>
         </div>
       </div>
     );
   }
 
-  // Determine current user's verification record
-  const myVerification = verifications.find(v => v.businessId === user?.businessId);
-  const partnerVerification = verifications.find(v => v.businessId !== user?.businessId);
+  const myRecord = verifications.find((v: any) => v.businessId === user?.businessId);
+  const otherRecord = verifications.find((v: any) => v.businessId !== user?.businessId);
 
-  // Status mapping
-  const timelineSteps = [
-    { label: 'Match Proposed', completed: true, icon: ShieldCheck },
-    { label: 'Accepted by Both', completed: match.status !== 'proposed' && match.status !== 'rejected', icon: CheckCircle },
-    { label: 'Logistics Arranged', completed: ['both_accepted', 'logistics_scheduled', 'completed', 'verified'].includes(match.status), icon: Truck },
-    { label: 'Evidence Verified', completed: verifications.length === 2 && verifications.every(v => v.confirmed), icon: FileText },
-    { label: 'Certificate Issued', completed: match.status === 'verified', icon: Award },
-  ];
-
-  const bothVerificationsConfirmed = verifications.length === 2 && verifications.every(v => v.confirmed);
+  const getStepStatus = (stepIndex: number) => {
+    const status = match.status;
+    if (stepIndex === 1) return 'completed';
+    if (stepIndex === 2) return status !== 'pending' ? 'completed' : 'current';
+    if (stepIndex === 3) {
+      if (status === 'verified') return 'completed';
+      if (status === 'both_accepted') return 'current';
+      return 'upcoming';
+    }
+    if (stepIndex === 4) return status === 'verified' ? 'completed' : 'upcoming';
+    return 'upcoming';
+  };
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <button
         onClick={() => router.push('/dashboard')}
-        className="inline-flex items-center text-sm text-[#4B5563] hover:text-[#111827] transition-colors"
+        className="inline-flex items-center text-xs font-semibold text-[var(--eco-text-2)] hover:text-[var(--eco-text)] transition-colors gap-1.5"
       >
-        <ArrowLeft className="mr-2 h-4 w-4" />
+        <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
       </button>
 
-      {/* Timeline Tracker */}
-      <div className="bg-white border border-[#E5E7EB] p-8 rounded-2xl shadow-sm">
-        <h3 className="text-base font-bold text-[#111827] mb-6" style={{ fontFamily: 'var(--font-heading)' }}>Symbiosis Pipeline Tracker</h3>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative">
-          {/* Connector Line */}
-          <div className="hidden md:block absolute left-4 right-4 top-5 h-[1px] bg-[#E5E7EB] z-0"></div>
+      {/* Header Info Banner */}
+      <div className="eco-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[var(--eco-text-3)] font-semibold tracking-overline">
+              Deal #{match.id.substring(0, 8)}
+            </span>
+            {match.status === 'verified' ? (
+              <span className="badge-completion">Verified Complete</span>
+            ) : (
+              <span className="badge-success">Logistics Active</span>
+            )}
+          </div>
+          <h2 className="text-xl font-bold text-[var(--eco-text)] font-display">
+            Industrial Symbiosis Transfer
+          </h2>
+          <p className="text-xs text-[var(--eco-text-2)]">
+            Distance: {match.distanceKm.toFixed(1)} km • Match Confidence: {(match.matchConfidence * 100).toFixed(0)}%
+          </p>
+        </div>
 
-          {timelineSteps.map((step, idx) => {
-            const Icon = step.icon;
+        {certificate && (
+          <div className="p-3 rounded-lg bg-[var(--color-success-bg)] border border-[var(--color-success-border)] flex items-center gap-3 shrink-0">
+            <Award className="h-8 w-8 text-[var(--color-success)]" />
+            <div>
+              <span className="text-[10px] text-[var(--eco-text-3)] font-semibold tracking-overline block">CO₂e Avoided</span>
+              <span className="text-lg font-bold text-[var(--color-success)] font-display">{certificate.co2eAvoidedKg} kg</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Workflow Timeline Card */}
+      <div className="eco-card p-6 space-y-6">
+        <h3 className="text-sm font-bold text-[var(--eco-text)] tracking-overline font-display border-b border-[var(--eco-border)] pb-3">
+          Transfer Progress Timeline
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
+          {[
+            { step: 1, title: 'AI Match', desc: 'Alchemist pairing' },
+            { step: 2, title: 'Mutual Accept', desc: 'Terms confirmed' },
+            { step: 3, title: 'Logistics / Proof', desc: 'Transfer evidence' },
+            { step: 4, title: 'Verification', desc: 'Impact certificate' },
+          ].map((st) => {
+            const state = getStepStatus(st.step);
             return (
-              <div key={idx} className="flex items-center md:flex-col md:text-center space-x-4 md:space-x-0 md:space-y-3 z-10">
-                <div className={`p-2.5 rounded-full border ${step.completed
-                    ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
-                    : 'bg-[#F9FAFB] border-[#E5E7EB] text-[#9CA3AF]'
-                  }`}>
-                  <Icon className="h-5 w-5" />
+              <div
+                key={st.step}
+                className={`p-4 rounded-xl border transition-all ${
+                  state === 'completed'
+                    ? 'bg-[var(--color-success-bg)] border-[var(--color-success-border)] text-[var(--color-success)]'
+                    : state === 'current'
+                    ? 'bg-[var(--color-info-bg)] border-[var(--color-info-border)] text-[var(--color-info)]'
+                    : 'bg-[var(--eco-surface-2)] border-[var(--eco-border)] text-[var(--eco-text-3)]'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      state === 'completed'
+                        ? 'bg-[var(--color-success)] text-white'
+                        : state === 'current'
+                        ? 'bg-[var(--color-info)] text-white'
+                        : 'bg-[var(--eco-border)] text-[var(--eco-text-3)]'
+                    }`}
+                  >
+                    {state === 'completed' ? <CheckCircle className="h-3.5 w-3.5" /> : st.step}
+                  </div>
+                  <span className="font-bold text-xs font-display text-[var(--eco-text)]">{st.title}</span>
                 </div>
-                <div>
-                  <span className={`text-xs font-bold block ${step.completed ? 'text-[#111827]' : 'text-[#9CA3AF]'}`}>
-                    {step.label}
-                  </span>
-                  <span className="text-[10px] text-[#9CA3AF] block mt-0.5">
-                    {step.completed ? 'Completed' : 'Pending'}
-                  </span>
-                </div>
+                <p className="text-[10px] text-[var(--eco-text-2)]">{st.desc}</p>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Hauler Info Section */}
-      {match.status !== 'proposed' && match.status !== 'rejected' && (
-        <div className="glass-card p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-3 text-[#166534]">
-              <Truck className="h-6 w-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-[#111827] text-sm">Assigned Logistics Partner</h4>
-              <p className="text-xs text-[#4B5563] mt-1">
-                A hauler has been automatically dispatched to coordinate this transfer.
-              </p>
-            </div>
-          </div>
-          <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-4 flex flex-col justify-center sm:min-w-[280px]">
-            <div className="flex items-center justify-between text-xs pb-2 border-b border-[#E5E7EB]">
-              <span className="text-[#6B7280] font-semibold">HAULER COMPANY</span>
-              <span className="text-[#111827] font-bold">EcoMatch Logistics</span>
-            </div>
-            <div className="flex items-center justify-between text-xs pt-2">
-              <span className="text-[#6B7280] font-semibold">CONTACT NUMBER</span>
-              <span className="text-[#0F6FE8] font-bold font-mono">+1-555-LOG-PICK</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Transfer Evidence & Verification Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Evidence Submission Card */}
+        <div className="eco-card p-6 space-y-5">
+          <h3 className="text-base font-bold text-[var(--eco-text)] font-display flex items-center gap-2 border-b border-[var(--eco-border)] pb-3">
+            <UploadCloud className="h-4.5 w-4.5 text-[var(--eco-accent)]" />
+            Transfer Verification Evidence
+          </h3>
 
-      {/* Main Grid: Verification Form & Certificate */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-        {/* Left Side: Verification Records */}
-        <div className="glass-card p-8 rounded-2xl space-y-6">
-          <h3 className="text-lg font-bold text-[#111827] border-b border-[#E5E7EB] pb-3" style={{ fontFamily: 'var(--font-heading)' }}>Delivery Verification</h3>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
-              <div>
-                <span className="text-xs font-bold text-[#111827] block">Your Verification Status</span>
-                <span className="text-[10px] text-[#6B7280] block mt-0.5">Upload receipt or photo to verify delivery</span>
-              </div>
-              <div>
-                {myVerification?.confirmed ? (
-                  <span className="bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] text-xs px-2.5 py-1 rounded-full font-bold">Confirmed</span>
-                ) : (
-                  <span className="bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] text-xs px-2.5 py-1 rounded-full font-bold">Pending</span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
-              <div>
-                <span className="text-xs font-bold text-[#111827] block">Symbiosis Partner Verification</span>
-                <span className="text-[10px] text-[#6B7280] block mt-0.5">Partner business verification status</span>
-              </div>
-              <div>
-                {partnerVerification?.confirmed ? (
-                  <span className="bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] text-xs px-2.5 py-1 rounded-full font-bold">Confirmed</span>
-                ) : (
-                  <span className="bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] text-xs px-2.5 py-1 rounded-full font-bold">Pending</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Form to submit verification if not yet confirmed */}
-          {!myVerification?.confirmed && (
-            <form onSubmit={handleUploadEvidence} className="bg-[#F9FAFB] p-6 rounded-xl border border-[#E5E7EB] space-y-4">
-              <span className="text-xs font-bold text-[#374151] uppercase tracking-wider block">Submit Delivery Evidence</span>
-
-              <div>
-                <label className="block text-[10px] text-[#6B7280] font-semibold mb-2 uppercase">EVIDENCE TYPE</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${evidenceType === 'receipt'
-                      ? 'border-[#0F6FE8] bg-[#EFF6FF] text-[#1D4ED8]'
-                      : 'border-[#E5E7EB] bg-white text-[#4B5563] hover:bg-[#F3F4F6]'
-                    }`}>
-                    <input
-                      type="radio"
-                      name="evidence"
-                      value="receipt"
-                      checked={evidenceType === 'receipt'}
-                      onChange={() => setEvidenceType('receipt')}
-                      className="sr-only"
-                    />
-                    <span className="text-xs font-bold">Hauler Receipt</span>
-                  </label>
-
-                  <label className={`border rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all ${evidenceType === 'photo'
-                      ? 'border-[#0F6FE8] bg-[#EFF6FF] text-[#1D4ED8]'
-                      : 'border-[#E5E7EB] bg-white text-[#4B5563] hover:bg-[#F3F4F6]'
-                    }`}>
-                    <input
-                      type="radio"
-                      name="evidence"
-                      value="photo"
-                      checked={evidenceType === 'photo'}
-                      onChange={() => setEvidenceType('photo')}
-                      className="sr-only"
-                    />
-                    <span className="text-xs font-bold">Photo of Delivery</span>
-                  </label>
+          {myRecord ? (
+            myRecord.confirmed ? (
+              <div className="p-4 rounded-lg bg-[var(--color-success-bg)] border border-[var(--color-success-border)] flex items-start gap-3 text-xs text-[var(--color-success)]">
+                <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong className="block font-semibold text-sm">Your Transfer Evidence Verified!</strong>
+                  <p className="text-[var(--eco-text-2)] leading-relaxed">
+                    Evidence type: <span className="font-semibold text-[var(--eco-text)] capitalize">{myRecord.evidenceType?.replace('_', ' ')}</span>. Admin verification complete.
+                  </p>
                 </div>
               </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] flex items-start gap-3 text-xs text-[var(--color-warning-mid)]">
+                  <Clock className="h-5 w-5 shrink-0 mt-0.5 animate-pulse" />
+                  <div className="space-y-1">
+                    <strong className="block font-semibold text-sm text-[var(--eco-text)]">Evidence Submitted — Awaiting Admin Approval</strong>
+                    <p className="text-[var(--eco-text-2)] leading-relaxed">
+                      Your transfer evidence photo ({myRecord.evidenceType}) has been submitted. It is currently in the Admin Verification Queue awaiting review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-md bg-[var(--eco-surface-2)] border border-[var(--eco-border)] flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 truncate max-w-[220px]">
+                    <FileText className="h-4 w-4 shrink-0 text-[var(--eco-accent)]" />
+                    <span className="truncate text-[var(--eco-text-2)] font-mono text-[11px]">{myRecord.evidenceUrl}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEvidenceUrl(myRecord.evidenceUrl || '');
+                      setEvidenceType(myRecord.evidenceType || 'receipt');
+                    }}
+                    className="text-xs font-semibold text-[var(--eco-accent)] hover:underline shrink-0"
+                  >
+                    Replace Image
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            <form onSubmit={handleSubmitEvidence} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold tracking-overline mb-1.5 text-[var(--eco-text-2)]">
+                  Evidence Type
+                </label>
+                <select
+                  value={evidenceType}
+                  onChange={(e) => setEvidenceType(e.target.value)}
+                  className="eco-input"
+                  disabled={actionLoading}
+                >
+                  <option value="receipt">Weight Bridge Receipt</option>
+                  <option value="photo">Delivery Photo Proof</option>
+                  <option value="bill_of_lading">Bill of Lading</option>
+                </select>
+              </div>
 
               <div>
-                <label className="block text-[10px] text-[#6B7280] font-semibold mb-2 uppercase">UPLOAD EVIDENCE DOCUMENT / PHOTO</label>
+                <label className="block text-xs font-semibold tracking-overline mb-2 text-[var(--eco-text-2)]">
+                  Upload Evidence Image
+                </label>
                 {evidenceUrl ? (
-                  <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-3.5 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <img src={evidenceUrl} alt="Evidence Upload" className="h-10 w-10 rounded-lg object-cover border border-[#E5E7EB]" />
+                  <div className="p-4 rounded-md flex items-center justify-between" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
+                    <div className="flex items-center gap-3">
+                      <img src={evidenceUrl} alt="Transfer Evidence Proof" className="h-12 w-12 rounded-md object-cover" style={{ border: '1px solid var(--eco-border)' }} />
                       <div>
-                        <span className="text-xs font-bold text-[#166534] block">Document Uploaded</span>
-                        <span className="text-[10px] text-[#6B7280] block truncate max-w-[180px]">{evidenceUrl}</span>
+                        <span className="text-xs font-bold block text-[var(--color-success)]">Evidence Uploaded Successfully</span>
+                        <span className="text-[10px] block truncate max-w-[180px] text-[var(--eco-text-3)]">{evidenceUrl}</span>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setEvidenceUrl('')}
-                      className="text-xs text-[#DC2626] hover:text-[#B91C1C] font-semibold"
+                      className="text-xs font-semibold text-[var(--color-error-mid)] hover:underline"
                     >
-                      Remove
+                      Change
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-white border border-[#E5E7EB] border-dashed rounded-xl p-5 text-center hover:border-[#0F6FE8] hover:bg-[#EFF6FF] transition-all relative">
+                  <div className="border border-dashed rounded-md p-6 text-center transition-all relative hover:bg-[var(--eco-surface)]" style={{ background: 'var(--eco-surface-2)', borderColor: 'var(--eco-border)' }}>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleEvidenceUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       disabled={uploadingEvidence || actionLoading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className="flex flex-col items-center justify-center space-y-1.5">
+                    <div className="flex flex-col items-center justify-center gap-2">
                       {uploadingEvidence ? (
                         <>
-                          <Loader2 className="h-6 w-6 animate-spin text-[#0F6FE8]" />
-                          <span className="text-[10px] font-semibold text-[#4B5563]">Uploading to Cloudinary...</span>
+                          <Loader2 className="h-8 w-8 animate-spin text-[var(--eco-accent)]" />
+                          <span className="text-xs font-semibold animate-pulse text-[var(--eco-text-2)]">Uploading Evidence Image...</span>
                         </>
                       ) : (
                         <>
-                          <UploadCloud className="h-6 w-6 text-[#9CA3AF]" />
-                          <span className="text-xs text-[#4B5563]">Click to select receipt or photo file</span>
+                          <UploadCloud className="h-8 w-8 text-[var(--eco-text-3)]" />
+                          <span className="text-xs font-semibold text-[var(--eco-text-2)]">Click or drag image here to upload</span>
+                          <span className="text-[10px] text-[var(--eco-text-3)]">Supports PNG, JPG, GIF up to 10MB</span>
                         </>
                       )}
                     </div>
@@ -364,132 +388,90 @@ export default function DealTracker({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
-              {error && (
-                <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-3 flex items-start space-x-2 text-[#991B1B] text-xs">
-                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
               <button
                 type="submit"
-                disabled={actionLoading || uploadingEvidence || !evidenceUrl}
-                className="w-full bg-[#0F6FE8] hover:bg-[#0A52B0] text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center disabled:opacity-50"
+                disabled={!evidenceUrl || actionLoading}
+                className="eco-btn-primary w-full py-2.5 text-xs"
               >
-                {actionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
-                  <>
-                    <UploadCloud className="h-4 w-4 mr-2" />
-                    Confirm Verification
-                  </>
-                )}
+                {actionLoading ? <Loader2 className="h-4 w-4 anim-spin" /> : 'Submit Evidence Proof'}
               </button>
             </form>
           )}
+
+          {/* Counterparty status badge */}
+          <div className="p-3 rounded-lg bg-[var(--eco-surface-2)] border border-[var(--eco-border)] flex items-center justify-between text-xs">
+            <span className="text-[var(--eco-text-2)] font-medium">Counterparty Verification Status:</span>
+            {otherRecord?.confirmed ? (
+              <span className="badge-success">Confirmed</span>
+            ) : (
+              <span className="badge-warning">Pending Proof</span>
+            )}
+          </div>
         </div>
 
-        {/* Right Side: Certificate Section */}
-        <div className="flex flex-col justify-between">
-          {match.status === 'verified' && certificate ? (
-            /* Visual Certificate Card */
-            <div className="bg-[#F0FDF4] border-2 border-[#166534]/20 p-8 rounded-2xl relative overflow-hidden flex flex-col justify-between min-h-[400px] shadow-md">
-              {/* Background watermark */}
-              <Recycle className="absolute -right-16 -bottom-16 h-64 w-64 text-[#166534]/5 pointer-events-none" />
+        {/* Impact Certificate Panel */}
+        <div className="eco-card p-6 flex flex-col justify-between space-y-5">
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-[var(--eco-text)] font-display flex items-center gap-2 border-b border-[var(--eco-border)] pb-3">
+              <Award className="h-4.5 w-4.5 text-[var(--color-success)]" />
+              Verification Agent Impact Certificate
+            </h3>
 
-              <div className="space-y-6">
-                <div className="flex items-center space-x-2 border-b border-[#BBF7D0] pb-4">
-                  <Award className="h-8 w-8 text-[#166534]" />
+            {certificate ? (
+              <div className="p-5 rounded-xl bg-white border border-[var(--eco-border)] space-y-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-[var(--eco-border)] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Leaf className="h-4 w-4 text-[var(--color-success)]" />
+                    <span className="font-bold text-xs tracking-tight font-display text-[var(--eco-text)]">OFFICIAL IMPACT CERTIFICATE</span>
+                  </div>
+                  <span className="badge-success">AUDITED</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="font-extrabold text-[#166534] text-lg tracking-tight uppercase" style={{ fontFamily: 'var(--font-heading)' }}>Certificate of Impact</h3>
-                    <span className="text-[10px] text-[#16A34A] font-bold tracking-wider">ECOMATCH INDUSTRIAL SYMBIOSIS</span>
+                    <span className="text-[10px] text-[var(--eco-text-3)] tracking-overline font-semibold block">CO₂e AVOIDED</span>
+                    <span className="text-2xl font-black text-[var(--color-success)] font-display">{certificate.co2eAvoidedKg} kg</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--eco-text-3)] tracking-overline font-semibold block">DISPOSAL SAVED</span>
+                    <span className="text-2xl font-black text-[var(--eco-text)] font-display">${certificate.dollarsSaved}</span>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider block">VERIFIED REDUCTION</span>
-                    <span className="text-4xl font-extrabold text-[#166534] mt-1 block" style={{ fontFamily: 'var(--font-heading)' }}>
-                      {certificate.co2eAvoidedKg.toLocaleString()} kg
-                    </span>
-                    <span className="text-xs text-[#16A34A] font-semibold mt-0.5 block">CO2 Equivalent Avoided</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider block">VERIFIED SAVINGS</span>
-                    <span className="text-2xl font-extrabold text-[#111827] mt-1 block flex items-center" style={{ fontFamily: 'var(--font-heading)' }}>
-                      <DollarSign className="h-6 w-6 text-[#166534] mr-0.5" />
-                      {certificate.dollarsSaved.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-[#6B7280] block mt-0.5">Avoided Waste Disposal Cost</span>
-                  </div>
+                <div className="pt-2 border-t border-[var(--eco-border)] text-[10px] text-[var(--eco-text-3)] leading-relaxed">
+                  Methodology: {certificate.methodologyReference || 'EPA WARM v15 Factor Calculation'}
                 </div>
-              </div>
 
-              <div className="space-y-3 pt-6 border-t border-[#BBF7D0] z-10">
-                <span className="text-[9px] text-[#6B7280] block uppercase">METHODOLOGY REFERENCE</span>
-                <p className="text-[10px] text-[#4B5563] font-mono leading-relaxed bg-white p-2.5 rounded-lg border border-[#E5E7EB]">
-                  {certificate.methodologyReference}
-                </p>
-                <button
-                  onClick={() => window.open(`/dashboard/certificate/${match.id}`, '_blank')}
-                  className="w-full mt-4 bg-[#166534] hover:bg-[#14532D] text-white rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm flex items-center justify-center border border-[#166534]/20"
+                <a
+                  href={`/dashboard/certificate/${match.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="eco-btn-primary w-full py-3 text-xs text-center justify-center flex items-center gap-2 mt-3"
                 >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Download PDF Certificate
-                </button>
+                  <Award className="h-4.5 w-4.5" />
+                  <span>View & Download Official PDF Certificate</span>
+                </a>
               </div>
-            </div>
-          ) : (
-            /* Action call to issue certificate if verifications complete */
-            <div className="glass-card p-8 rounded-2xl text-center flex flex-col justify-center items-center space-y-6 h-full">
-              <Award className="h-16 w-16 text-[#D1D5DB]" />
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Impact Certificate</h3>
-                <p className="text-sm text-[#4B5563] max-w-xs mx-auto">
-                  Once both verification records are confirmed by generators and consumers, the carbon/financial saving certificate will unlock.
+            ) : (
+              <div className="p-5 rounded-xl bg-[var(--eco-surface-2)] text-center space-y-3">
+                <ShieldCheck className="h-8 w-8 text-[var(--eco-text-3)] mx-auto" />
+                <p className="text-xs text-[var(--eco-text-2)] leading-relaxed">
+                  Both businesses must upload transfer evidence before the Verification Agent generates an audited CO₂ certification.
                 </p>
               </div>
+            )}
+          </div>
 
-              {bothVerificationsConfirmed && (
-                <button
-                  onClick={handleIssueCertificate}
-                  disabled={actionLoading}
-                  className="w-full bg-[#166534] hover:bg-[#14532D] text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
-                >
-                  {actionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Issue Carbon Certificate'}
-                </button>
-              )}
-            </div>
+          {!certificate && verifications.filter((v: any) => v.confirmed).length >= 2 && (
+            <button
+              onClick={handleIssueCertificate}
+              disabled={actionLoading}
+              className="eco-btn-primary w-full py-2.5 text-xs"
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 anim-spin" /> : 'Calculate Impact Certificate'}
+            </button>
           )}
         </div>
-      </div>
-
-      {/* Deal Activity Log Section */}
-      <div className="glass-card p-8 rounded-2xl space-y-6">
-        <h3 className="text-base font-bold text-[#111827]" style={{ fontFamily: 'var(--font-heading)' }}>Deal Activity Log</h3>
-        {events.length === 0 ? (
-          <p className="text-xs text-[#9CA3AF]">No activity events recorded yet.</p>
-        ) : (
-          <div className="relative pl-6 border-l border-[#E5E7EB] space-y-6 ml-2">
-            {events.map((event) => (
-              <div key={event.id} className="relative">
-                {/* Timeline Node Dot */}
-                <div className="absolute -left-[32px] top-1 w-3 h-3 rounded-full bg-white border-2 border-[#0F6FE8] shadow-sm"></div>
-                
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#111827] uppercase tracking-wider">
-                      {event.eventType.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-[10px] text-[#9CA3AF] font-mono">
-                      {new Date(event.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#4B5563] leading-relaxed">{event.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
