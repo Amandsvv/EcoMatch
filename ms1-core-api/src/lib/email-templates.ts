@@ -103,6 +103,36 @@ export function verificationEmailHtml(businessName: string, verifyUrl: string): 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Password Reset Email
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function resetPasswordEmailHtml(resetUrl: string): string {
+  const body = `
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:${BRAND_DARK};">
+      Reset your password
+    </h1>
+    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">
+      We received a request to reset your EcoMatch account password.<br/>
+      Click the button below to choose a new password. This link is valid for <strong>1 hour</strong>.
+    </p>
+
+    ${ctaButton(resetUrl, 'Reset Password →')}
+
+    <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;">
+      Or copy and paste this URL into your browser:<br/>
+      <a href="${resetUrl}" style="color:${BRAND_GREEN};word-break:break-all;">${resetUrl}</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#94a3b8;">
+      If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+    </p>`;
+
+  return baseLayout(
+    `Reset your EcoMatch password.`,
+    body,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Match Proposal Email
 // ─────────────────────────────────────────────────────────────────────────────
 

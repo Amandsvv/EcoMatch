@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
@@ -5,7 +6,7 @@ import { AuthRepository } from './auth.repository';
 import { AppError, ErrorCodes } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { sendEmail } from '../../lib/mailer';
-import { verificationEmailHtml } from '../../lib/email-templates';
+import { verificationEmailHtml, resetPasswordEmailHtml } from '../../lib/email-templates';
 
 export class AuthService {
   private repository: AuthRepository;
@@ -96,7 +97,14 @@ export class AuthService {
     );
 
     // Send verification email in background
-    const backendUrl = process.env.BACKEND_URL || process.env.API_BASE_URL || process.env.SERVER_URL || `http://localhost:${process.env.PORT || 4000}`;
+    const backendUrl =
+      process.env.BACKEND_URL ||
+      process.env.API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.SERVER_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://api.ecomatch.store'
+        : `http://localhost:${process.env.PORT || 4000}`);
     const verifyUrl = `${backendUrl}/auth/verify-email?token=${verificationToken}`;
     
     sendEmail(
@@ -221,6 +229,95 @@ export class AuthService {
     await this.repository.deleteUser(userId);
     logger.info('User account deleted successfully', { userId, email: user.email });
     return { success: true };
+  }
+
+  async forgotPassword(email: string) {
+    if (!email) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Email is required');
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+    const user = await this.repository.getUserByEmail(trimmedEmail);
+
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour validity
+
+      await this.repository.setResetPasswordToken(user.id, resetToken, resetExpiry);
+
+      const frontendUrl =
+        process.env.FRONTEND_URL ||
+        (process.env.NODE_ENV === 'production'
+          ? 'https://ecomatch.store'
+          : 'http://localhost:3000');
+      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+      sendEmail(
+        user.email,
+        'Reset your EcoMatch password',
+        resetPasswordEmailHtml(resetUrl)
+      ).catch((err) => {
+        logger.error('Failed to send password reset email', { email: user.email, error: err.message });
+      });
+
+      logger.info('Password reset requested', { userId: user.id, email: user.email });
+    } else {
+      logger.info('Password reset requested for non-existent email', { email: trimmedEmail });
+    }
+
+    // Always return generic message to prevent email enumeration
+    return {
+      message: 'If an account exists with this email, a password reset link has been sent.',
+    };
+  }
+
+  async verifyResetToken(token: string) {
+    if (!token) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Reset token is required');
+    }
+
+    const user = await this.repository.getUserByResetToken(token);
+    if (!user || !user.resetPasswordExpiry) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Invalid or expired password reset token');
+    }
+
+    if (Date.now() > new Date(user.resetPasswordExpiry).getTime()) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Password reset token has expired');
+    }
+
+    return { valid: true, email: user.email };
+  }
+
+  async resetPassword(params: { token: string; newPassword: string }) {
+    const { token, newPassword } = params;
+
+    if (!token || !newPassword) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Token and new password are required');
+    }
+
+    if (newPassword.length < 8) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Password must be at least 8 characters long');
+    }
+
+    const user = await this.repository.getUserByResetToken(token);
+    if (!user || !user.resetPasswordExpiry) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Invalid or expired password reset token');
+    }
+
+    if (Date.now() > new Date(user.resetPasswordExpiry).getTime()) {
+      throw new AppError(ErrorCodes.INVALID_REQUEST, 400, 'Password reset token has expired');
+    }
+
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    await this.repository.updatePasswordAndClearResetToken(user.id, newPasswordHash);
+
+    logger.info('Password reset successfully', { userId: user.id, email: user.email });
+
+    return {
+      message: 'Password has been reset successfully. You can now log in with your new password.',
+    };
   }
 }
 

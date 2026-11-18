@@ -52,6 +52,9 @@ export const api = {
   // Auth
   signup: (body: any) => request('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: any) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  forgotPassword: (email: string) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyResetToken: (token: string) => request(`/auth/verify-reset-token?token=${encodeURIComponent(token)}`),
+  resetPassword: (body: { token: string; newPassword: string }) => request('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
 
   // Submissions
   createSubmission: (body: any) => request('/submissions', { method: 'POST', body: JSON.stringify(body) }),

@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { authMiddleware } from '../../lib/middleware';
 import { validateRequest } from '../../lib/validation.middleware';
-import { SignupSchema, LoginSchema } from './auth.validation';
+import { SignupSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema } from './auth.validation';
 
 const router = Router();
 
@@ -16,5 +16,9 @@ router.post('/signup', validateRequest(SignupSchema), controller.signup);
 router.post('/login', validateRequest(LoginSchema), controller.login);
 router.get('/verify-email', controller.verifyEmail);
 router.delete('/account', authMiddleware, controller.deleteAccount);
+
+router.post('/forgot-password', validateRequest(ForgotPasswordSchema), controller.forgotPassword);
+router.get('/verify-reset-token', controller.verifyResetToken);
+router.post('/reset-password', validateRequest(ResetPasswordSchema), controller.resetPassword);
 
 export default router;

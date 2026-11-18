@@ -84,5 +84,38 @@ export class AuthRepository {
     const db = getDb();
     await db.delete(schema.users).where(eq(schema.users.id, userId));
   }
+
+  async setResetPasswordToken(userId: string, token: string, expiry: Date) {
+    const db = getDb();
+    await db
+      .update(schema.users)
+      .set({
+        resetPasswordToken: token,
+        resetPasswordExpiry: expiry,
+      })
+      .where(eq(schema.users.id, userId));
+  }
+
+  async getUserByResetToken(token: string) {
+    const db = getDb();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.resetPasswordToken, token))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async updatePasswordAndClearResetToken(userId: string, passwordHash: string) {
+    const db = getDb();
+    await db
+      .update(schema.users)
+      .set({
+        passwordHash,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
+      })
+      .where(eq(schema.users.id, userId));
+  }
 }
 

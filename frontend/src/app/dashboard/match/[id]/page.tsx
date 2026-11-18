@@ -17,6 +17,7 @@ import {
   MessageSquare,
   ShieldCheck,
 } from 'lucide-react';
+import FormattedDraftMessage from '@/components/FormattedDraftMessage';
 
 export default function MatchProposalReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -217,12 +218,17 @@ export default function MatchProposalReviewPage({ params }: { params: Promise<{ 
           <>
             {/* Left Side: Draft Message */}
             <div className="eco-card p-6 space-y-5 md:col-span-2">
-              <h3 className="text-base font-bold text-[var(--eco-text)] font-display border-b border-[var(--eco-border)] pb-3">
-                Proposed Agreement
-              </h3>
+              <div className="flex items-center justify-between border-b border-[var(--eco-border)] pb-3">
+                <h3 className="text-base font-bold text-[var(--eco-text)] font-display">
+                  Proposed Agreement
+                </h3>
+                <span className="text-[11px] font-medium text-[var(--eco-text-3)] bg-[var(--eco-surface-2)] px-2.5 py-1 rounded-full border border-[var(--eco-border)]">
+                  Drafted by Negotiator Agent
+                </span>
+              </div>
 
-              <div className="p-5 rounded-lg bg-[var(--eco-surface-2)] border border-[var(--eco-border)] text-xs sm:text-sm text-[var(--eco-text-2)] whitespace-pre-wrap leading-relaxed">
-                &ldquo;{myDraft.draftMessage}&rdquo;
+              <div className="p-5 rounded-lg bg-[var(--eco-surface-2)] border border-[var(--eco-border)]">
+                <FormattedDraftMessage message={myDraft.draftMessage} />
               </div>
 
               <div className="p-4 rounded-lg bg-[var(--color-info-bg)] border border-[var(--color-info-border)] flex items-start gap-3 text-xs text-[var(--color-info)]">

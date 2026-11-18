@@ -38,6 +38,8 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').notNull().default(false),
   emailVerificationToken: varchar('email_verification_token', { length: 255 }),
   emailVerificationExpiry: timestamp('email_verification_expiry'),
+  resetPasswordToken: varchar('reset_password_token', { length: 255 }),
+  resetPasswordExpiry: timestamp('reset_password_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

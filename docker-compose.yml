@@ -47,6 +47,8 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-ecomatch}:${POSTGRES_PASSWORD:-ecomatch}@postgres:5432/${POSTGRES_DB:-ecomatch}
       MS2_BASE_URL: http://ms2:8000
+      BACKEND_URL: ${BACKEND_URL:-https://api.ecomatch.store}
+      FRONTEND_URL: ${FRONTEND_URL:-https://ecomatch.store}
     depends_on:
       postgres:
         condition: service_healthy

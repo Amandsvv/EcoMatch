@@ -187,7 +187,11 @@ export class MatchesService {
     await this.repository.saveDraftsAndLogEvent(draftsRecords, dealEventRecord, match.submissionId);
 
     // Send real SES notifications
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://ecomatch.store'
+        : 'http://localhost:3000');
     const dashboardUrl = `${frontendUrl}/dashboard`;
 
     Promise.all([

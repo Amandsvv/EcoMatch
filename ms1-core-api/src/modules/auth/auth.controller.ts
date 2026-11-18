@@ -30,10 +30,14 @@ export class AuthController {
   };
 
   verifyEmail = async (req: Request, res: Response) => {
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://ecomatch.store'
+        : 'http://localhost:3000');
     try {
       const token = req.query.token as string;
       const result = await this.service.verifyEmail(token);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const userParam = encodeURIComponent(
         JSON.stringify({
           id: result.userId,
@@ -45,7 +49,6 @@ export class AuthController {
       );
       res.redirect(`${frontendUrl}/login?verified=true&token=${result.token}&user=${userParam}`);
     } catch (error) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       res.redirect(`${frontendUrl}/login?error=${encodeURIComponent((error as any).message || 'Verification failed')}`);
     }
   };
@@ -55,6 +58,36 @@ export class AuthController {
       const userId = req.userId;
       const result = await this.service.deleteAccount(userId!);
       logger.info('User account deleted', { traceId: req.traceId, userId });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.forgotPassword(req.body.email);
+      logger.info('Forgot password request processed', { traceId: req.traceId, email: req.body.email });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyResetToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = (req.query.token as string) || '';
+      const result = await this.service.verifyResetToken(token);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.resetPassword(req.body);
+      logger.info('Reset password completed', { traceId: req.traceId });
       res.json(result);
     } catch (error) {
       next(error);

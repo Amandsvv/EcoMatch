@@ -22,3 +22,17 @@ export const SubmitSurplusSchema = z.object({
   cost: z.coerce.number().min(0, 'Disposal cost cannot be negative'),
   frequency: z.string().min(1, 'Please select a disposal frequency'),
 });
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().min(8, 'Confirm password must be at least 8 characters'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });

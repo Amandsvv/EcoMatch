@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { LoginSchema } from '@/lib/validation';
-import { Leaf, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Leaf, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function UserLoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,18 +82,37 @@ export default function UserLoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#0A0F0D] mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="eco-input"
-                required
-                disabled={loading}
-              />
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-semibold text-[#0A0F0D]">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-[#1B4332] font-semibold hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter Password"
+                  className="eco-input pr-10"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A928D] hover:text-[#0A0F0D] transition-colors focus:outline-none"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
