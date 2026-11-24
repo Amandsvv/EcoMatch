@@ -34,7 +34,7 @@ class LLMClient:
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         self.model = os.getenv("LLM_MODEL", "claude-3-haiku-20240307")
         self.groq_api_key = os.getenv("GROQ_API_KEY")
-        self.groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         self.temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
         self.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1200"))
         self.timeout_seconds = float(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
@@ -107,10 +107,27 @@ class LLMClient:
 
             try:
                 if self._has_real_groq_key():
-                    raw_text = await self._create_message_groq(
-                        system_prompt=system_prompt,
-                        user_content=user_content,
-                    )
+                    try:
+                        raw_text = await self._create_message_groq(
+                            system_prompt=system_prompt,
+                            user_content=user_content,
+                        )
+                    except Exception as groq_err:
+                        if self._has_real_api_key():
+                            logger.warning(
+                                f"Groq request failed ({str(groq_err)}), falling back to Anthropic",
+                                extra={"operation": operation, "error": str(groq_err)},
+                            )
+                            raw_text = await asyncio.wait_for(
+                                asyncio.to_thread(
+                                    self._create_message,
+                                    system_prompt=system_prompt,
+                                    user_content=user_content,
+                                ),
+                                timeout=self.timeout_seconds,
+                            )
+                        else:
+                            raise
                 else:
                     raw_text = await asyncio.wait_for(
                         asyncio.to_thread(
@@ -175,6 +192,15 @@ class LLMClient:
                     if response.status_code == 200:
                         data = response.json()
                         return data["choices"][0]["message"]["content"]
+
+                    if response.status_code == 404:
+                        if payload.get("model") != "llama-3.1-8b-instant":
+                            logger.warning(
+                                f"Groq model {payload.get('model')} not found or not accessible. Falling back to llama-3.1-8b-instant.",
+                                extra={"original_model": payload.get("model")}
+                            )
+                            payload["model"] = "llama-3.1-8b-instant"
+                            continue
 
                     if response.status_code == 429:
                         # Extract sleep time

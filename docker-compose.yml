@@ -22,7 +22,7 @@ services:
     build:
       context: ./ms1-core-api
       dockerfile: Dockerfile
-    command: npm run db:migrate
+    command: npm run db:migrate:prod
     env_file:
       - ./ms1-core-api/.env
     environment:
@@ -85,7 +85,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.ecomatch.store}
-    command: npm run start
     depends_on:
       ms1:
         condition: service_healthy
